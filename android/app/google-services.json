@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "124248305271",
+    "project_id": "hairstylr-d528b",
+    "storage_bucket": "hairstylr-d528b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:124248305271:android:e34614bdb8cf25ddab6072",
+        "android_client_info": {
+          "package_name": "com.example.hairstylr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzQcQpp2IK53w7wtLOfsoX_saszcf62A8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
