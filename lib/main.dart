@@ -1,6 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
+import 'app_config.dart';
+import 'bootstrap_service.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -14,116 +18,333 @@ Future<void> main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Hairstylr Admin',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1D6F5F)),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const AuthGate(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final user = snapshot.data;
+        if (user == null) {
+          return const LoginScreen();
+        }
+
+        if (!AppConfig.hasConfiguredAdminEmails) {
+          return const LoginScreen(
+            initialError:
+                'Configura prima ADMIN_EMAILS e poi accedi con un account admin.',
+          );
+        }
+
+        final signedInEmail = user.email?.toLowerCase().trim();
+        final adminEmails = AppConfig.adminEmails;
+
+        if (signedInEmail == null || !adminEmails.contains(signedInEmail)) {
+          return UnauthorizedScreen(user: user);
+        }
+
+        return AdminDashboard(user: user);
+      },
+    );
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class UnauthorizedScreen extends StatelessWidget {
+  const UnauthorizedScreen({super.key, required this.user});
 
-  void _incrementCounter() {
+  final User user;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Accesso negato',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 12),
+                Text('L utente ${user.email} non e autorizzato come admin.'),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: () => FirebaseAuth.instance.signOut(),
+                  child: const Text('Esci'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key, this.initialError});
+
+  final String? initialError;
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _error = widget.initialError;
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _signIn() async {
+    FocusScope.of(context).unfocus();
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _submitting = true;
+      _error = null;
     });
+
+    try {
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      final signedInEmail = credential.user?.email?.toLowerCase().trim();
+      final adminEmails = AppConfig.adminEmails;
+      if (signedInEmail == null || !adminEmails.contains(signedInEmail)) {
+        await FirebaseAuth.instance.signOut();
+        throw FirebaseAuthException(
+          code: 'not-admin',
+          message: 'Questo account non e autorizzato come amministratore.',
+        );
+      }
+    } on FirebaseAuthException catch (error) {
+      setState(() {
+        _error = switch (error.code) {
+          'invalid-email' => 'Email non valida.',
+          'invalid-credential' => 'Credenziali non valide.',
+          'wrong-password' => 'Password non corretta.',
+          'user-not-found' => 'Utente non trovato.',
+          'not-admin' => error.message,
+          _ => error.message ?? 'Accesso non riuscito.',
+        };
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Hairstylr Admin',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Accedi con l account amministratore Firebase.',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 24),
+                if (!AppConfig.hasConfiguredAdminEmails)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Configura le email admin con --dart-define=ADMIN_EMAILS=mail1@example.com,mail2@example.com prima del deploy.',
+                    ),
+                  ),
+                if (!AppConfig.hasConfiguredAdminEmails)
+                  const SizedBox(height: 16),
+                TextField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    _error!,
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: _submitting ? null : _signIn,
+                  child: Text(_submitting ? 'Accesso in corso...' : 'Accedi'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AdminDashboard extends StatefulWidget {
+  const AdminDashboard({super.key, required this.user});
+
+  final User user;
+
+  @override
+  State<AdminDashboard> createState() => _AdminDashboardState();
+}
+
+class _AdminDashboardState extends State<AdminDashboard> {
+  final _bootstrapService = BootstrapService(FirebaseFirestore.instance);
+  bool _seeding = false;
+  String? _message;
+
+  Future<void> _seedCollections() async {
+    setState(() {
+      _seeding = true;
+      _message = null;
+    });
+
+    try {
+      await _bootstrapService.seedInitialData();
+      setState(() {
+        _message =
+            'Seed completato: services, availability e appointments ora hanno documenti iniziali.';
+      });
+    } catch (error) {
+      setState(() {
+        _message = 'Seed non riuscito: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _seeding = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('Admin Console'),
+        actions: [
+          TextButton(
+            onPressed: () => FirebaseAuth.instance.signOut(),
+            child: const Text('Logout'),
+          ),
+        ],
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+      body: Padding(
+        padding: const EdgeInsets.all(24),
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+              'Admin autenticato: ${widget.user.email}',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
+            const SizedBox(height: 16),
+            const Text(
+              'Firestore non supporta collezioni vuote: il bottone qui sotto crea i primi documenti nelle collezioni richieste.',
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                FilledButton(
+                  onPressed: _seeding ? null : _seedCollections,
+                  child: Text(
+                    _seeding
+                        ? 'Inizializzazione in corso...'
+                        : 'Crea collezioni iniziali',
+                  ),
+                ),
+                OutlinedButton(
+                  onPressed: () => FirebaseAuth.instance.signOut(),
+                  child: const Text('Esci'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Text('Collezioni previste:'),
+            const SizedBox(height: 8),
+            const Text('- services/basic_cut'),
+            const Text('- availability/default_week'),
+            const Text('- appointments/example_appointment'),
+            if (_message != null) ...[
+              const SizedBox(height: 24),
+              Text(_message!),
+            ],
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
