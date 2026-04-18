@@ -1,5 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+const List<String> _defaultSlots = [
+  '07:00-07:30',
+  '07:40-08:15',
+  '08:30-09:00',
+  '13:00-13:30',
+  '13:45-14:15',
+  '19:00-19:30',
+  '19:45-20:15',
+  '20:30-21:00',
+];
+
 class BootstrapService {
   BootstrapService(this._firestore);
 
@@ -8,16 +19,47 @@ class BootstrapService {
   Future<void> seedInitialData() async {
     final batch = _firestore.batch();
 
-    final serviceRef = _firestore.collection('services').doc('basic_cut');
-    batch.set(serviceRef, {
-      'name': 'Basic Cut',
-      'description': 'Classic haircut appointment.',
-      'durationMinutes': 45,
-      'price': 25,
-      'active': true,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    final services = [
+      {
+        'id': 'piega',
+        'name': 'Piega',
+        'description': 'Piega e finish.',
+        'durationMinutes': 60,
+        'price': 30,
+      },
+      {
+        'id': 'taglio',
+        'name': 'Taglio',
+        'description': 'Taglio donna a domicilio.',
+        'durationMinutes': 45,
+        'price': 25,
+      },
+      {
+        'id': 'colore',
+        'name': 'Colore',
+        'description': 'Colore base o ritocco.',
+        'durationMinutes': 120,
+        'price': 55,
+      },
+      {
+        'id': 'altro',
+        'name': 'Altro',
+        'description': 'Servizio personalizzato su richiesta.',
+      },
+    ];
+
+    for (final service in services) {
+      final ref = _firestore.collection('services').doc(service['id']! as String);
+      batch.set(ref, {
+        'name': service['name'],
+        'description': service['description'],
+        'durationMinutes': service['durationMinutes'],
+        'price': service['price'],
+        'active': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
 
     final availabilityRef = _firestore
         .collection('availability')
@@ -25,26 +67,29 @@ class BootstrapService {
     batch.set(availabilityRef, {
       'timezone': 'Europe/Rome',
       'weeklySchedule': {
-        'monday': ['09:00-13:00', '14:00-18:00'],
-        'tuesday': ['09:00-13:00', '14:00-18:00'],
-        'wednesday': ['09:00-13:00', '14:00-18:00'],
-        'thursday': ['09:00-13:00', '14:00-18:00'],
-        'friday': ['09:00-13:00', '14:00-18:00'],
-        'saturday': ['09:00-13:00'],
-        'sunday': <String>[],
+        'monday': _defaultSlots,
+        'tuesday': _defaultSlots,
+        'wednesday': _defaultSlots,
+        'thursday': _defaultSlots,
+        'friday': _defaultSlots,
+        'saturday': _defaultSlots,
+        'sunday': _defaultSlots,
       },
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    final appointmentRef = _firestore
-        .collection('appointments')
-        .doc('example_appointment');
+    final appointmentRef = _firestore.collection('appointments').doc('_bootstrap');
     batch.set(appointmentRef, {
-      'clientName': 'Demo Client',
-      'serviceId': 'basic_cut',
-      'status': 'pending',
-      'notes': 'Seed appointment created during setup.',
-      'scheduledFor': DateTime.now().add(const Duration(days: 1)),
+      'customerName': 'Seed',
+      'serviceId': 'taglio',
+      'serviceName': 'Taglio',
+      'serviceDurationMinutes': 45,
+      'status': 'seed',
+      'notes': 'Documento placeholder per inizializzare la collezione.',
+      'scheduledFor': DateTime.now(),
+      'scheduledDateKey': 'bootstrap',
+      'slotLabel': 'bootstrap',
+      'isSeed': true,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
