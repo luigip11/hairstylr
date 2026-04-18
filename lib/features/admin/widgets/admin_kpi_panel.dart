@@ -5,12 +5,12 @@ class AdminKpiPanel extends StatelessWidget {
     super.key,
     required this.label,
     required this.value,
-    required this.detail,
+    this.detail,
   });
 
   final String label;
   final String value;
-  final String detail;
+  final String? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,9 @@ class AdminKpiPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Text(detail, style: const TextStyle(color: Color(0xFFE0F0EA))),
+          detail == null
+              ? const SizedBox()
+              : Text(detail!, style: const TextStyle(color: Color(0xFFE0F0EA))),
         ],
       ),
     );

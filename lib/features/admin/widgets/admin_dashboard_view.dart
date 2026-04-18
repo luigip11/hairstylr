@@ -58,7 +58,7 @@ class _AdminDashboardStats extends GetView<AdminAreaController> {
             child: AdminKpiPanel(
               label: 'Appuntamenti in agenda',
               value: '${controller.appointments.length}',
-              detail: 'Richieste e slot prenotati visibili solo admin',
+              detail: 'Richieste e slot prenotati',
             ),
           ),
           SizedBox(
@@ -66,7 +66,6 @@ class _AdminDashboardStats extends GetView<AdminAreaController> {
             child: AdminKpiPanel(
               label: 'Admin attivo',
               value: controller.currentUser.value?.email ?? 'admin',
-              detail: 'Accesso riservato a voi due',
             ),
           ),
         ],
@@ -95,8 +94,9 @@ class _AdminDashboardSetup extends GetView<AdminAreaController> {
               children: [
                 Obx(
                   () => FilledButton(
-                    onPressed:
-                        controller.isSeeding.value ? null : controller.seedCollections,
+                    onPressed: controller.isSeeding.value
+                        ? null
+                        : controller.seedCollections,
                     child: Text(
                       controller.isSeeding.value
                           ? 'Aggiornamento in corso...'

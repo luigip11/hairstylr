@@ -13,6 +13,7 @@ class AdminAreaController extends GetxController {
     : _bootstrapService = BootstrapService(FirebaseFirestore.instance);
 
   final BootstrapService _bootstrapService;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -23,6 +24,7 @@ class AdminAreaController extends GetxController {
   final errorMessage = RxnString();
   final infoMessage = RxnString();
   final appointments = <Map<String, dynamic>>[].obs;
+  final busyAppointmentIds = <String>{}.obs;
 
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
@@ -50,17 +52,21 @@ class AdminAreaController extends GetxController {
       return;
     }
 
-    _appointmentsSubscription = FirebaseFirestore.instance
+    _appointmentsSubscription = _firestore
         .collection('appointments')
         .orderBy('scheduledFor')
         .snapshots()
         .listen((snapshot) {
           final docs = snapshot.docs
-              .map((doc) => doc.data())
+              .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
               .where((data) => data['isSeed'] != true)
               .toList(growable: false);
           appointments.assignAll(docs);
         });
+  }
+
+  bool isAppointmentBusy(String appointmentId) {
+    return busyAppointmentIds.contains(appointmentId);
   }
 
   Future<void> signIn() async {
@@ -112,6 +118,81 @@ class AdminAreaController extends GetxController {
     } finally {
       isSeeding.value = false;
     }
+  }
+
+  Future<bool> confirmAppointment(String appointmentId) async {
+    return _runAppointmentAction(
+      appointmentId,
+      () async {
+        await _firestore.collection('appointments').doc(appointmentId).update({
+          'status': 'confirmed',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      },
+      successMessage: 'Appuntamento confermato.',
+      errorPrefix: 'Conferma non riuscita',
+    );
+  }
+
+  Future<bool> updateAppointment({
+    required String appointmentId,
+    required String customerName,
+    required String serviceName,
+    required String notes,
+    required String status,
+  }) async {
+    return _runAppointmentAction(
+      appointmentId,
+      () async {
+        await _firestore.collection('appointments').doc(appointmentId).update({
+          'customerName': customerName.trim(),
+          'serviceName': serviceName.trim(),
+          'notes': notes.trim(),
+          'status': status,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      },
+      successMessage: 'Appuntamento aggiornato.',
+      errorPrefix: 'Modifica non riuscita',
+    );
+  }
+
+  Future<bool> deleteAppointment(String appointmentId) async {
+    return _runAppointmentAction(
+      appointmentId,
+      () async {
+        await _firestore.collection('appointments').doc(appointmentId).delete();
+      },
+      successMessage: 'Appuntamento eliminato.',
+      errorPrefix: 'Eliminazione non riuscita',
+    );
+  }
+
+  Future<bool> _runAppointmentAction(
+    String appointmentId,
+    Future<void> Function() action, {
+    required String successMessage,
+    required String errorPrefix,
+  }) async {
+    if (busyAppointmentIds.contains(appointmentId)) {
+      return false;
+    }
+
+    busyAppointmentIds.add(appointmentId);
+
+    try {
+      await action();
+      infoMessage.value = successMessage;
+      return true;
+    } on FirebaseException catch (error) {
+      infoMessage.value = '$errorPrefix: ${error.message ?? error.code}';
+    } catch (error) {
+      infoMessage.value = '$errorPrefix: $error';
+    } finally {
+      busyAppointmentIds.remove(appointmentId);
+    }
+
+    return false;
   }
 
   @override
