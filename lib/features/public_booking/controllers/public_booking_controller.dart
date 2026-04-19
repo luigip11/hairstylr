@@ -9,6 +9,7 @@ import '../../../core/models/booking_support.dart';
 class PublicBookingController extends GetxController {
   final nameController = TextEditingController();
   final notesController = TextEditingController();
+  final customServiceController = TextEditingController();
 
   final selectedDate = dateOnly(DateTime.now()).obs;
   final visibleMonth = DateTime(
@@ -20,6 +21,7 @@ class PublicBookingController extends GetxController {
   final isSubmitting = false.obs;
   final feedbackMessage = RxnString();
   final customerName = ''.obs;
+  final customServiceLabel = ''.obs;
 
   final services = <SalonService>[].obs;
   final availability = Rxn<AvailabilitySchedule>();
@@ -81,7 +83,24 @@ class PublicBookingController extends GetxController {
       !isSubmitting.value &&
       selectedService != null &&
       selectedSlot.value != null &&
-      customerName.value.trim().isNotEmpty;
+      customerName.value.trim().isNotEmpty &&
+      (!isOtherServiceSelected || customServiceLabel.value.trim().isNotEmpty);
+
+  bool get isOtherServiceSelected => selectedServiceId.value == 'altro';
+
+  String get selectedServiceDisplayName {
+    final service = selectedService;
+    if (service == null) {
+      return 'Seleziona un servizio';
+    }
+
+    final detail = customServiceLabel.value.trim();
+    if (service.id == 'altro' && detail.isNotEmpty) {
+      return '${service.name} - $detail';
+    }
+
+    return service.name;
+  }
 
   @override
   void onInit() {
@@ -171,6 +190,10 @@ class PublicBookingController extends GetxController {
     selectedServiceId.value = serviceId;
     selectedSlot.value = null;
     feedbackMessage.value = null;
+    if (serviceId != 'altro') {
+      customServiceController.clear();
+      customServiceLabel.value = '';
+    }
   }
 
   void selectSlot(TimeSlot slot) {
@@ -180,6 +203,11 @@ class PublicBookingController extends GetxController {
 
   void updateCustomerName(String value) {
     customerName.value = value;
+  }
+
+  void updateCustomServiceLabel(String value) {
+    customServiceLabel.value = value;
+    feedbackMessage.value = null;
   }
 
   Future<void> bookAppointment() async {
@@ -201,6 +229,8 @@ class PublicBookingController extends GetxController {
           'customerName': nameController.text.trim(),
           'serviceId': service.id,
           'serviceName': service.name,
+          'serviceDisplayName': selectedServiceDisplayName,
+          'serviceCustomLabel': customServiceLabel.value.trim(),
           'serviceDurationMinutes': service.durationMinutes ?? 0,
           'notes': notesController.text.trim(),
           'status': 'requested',
@@ -213,10 +243,12 @@ class PublicBookingController extends GetxController {
       );
 
       feedbackMessage.value =
-          'Richiesta inviata per ${service.name} il ${formatDate(selectedDate.value)} alle ${formatTime(slot.start)}.';
+          'Richiesta inviata per $selectedServiceDisplayName il ${formatDate(selectedDate.value)} alle ${formatTime(slot.start)}.';
       selectedSlot.value = null;
       nameController.clear();
       notesController.clear();
+      customServiceController.clear();
+      customServiceLabel.value = '';
       customerName.value = '';
     } on FirebaseException catch (error) {
       feedbackMessage.value = switch (error.code) {
@@ -235,6 +267,7 @@ class PublicBookingController extends GetxController {
     _availabilitySubscription?.cancel();
     nameController.dispose();
     notesController.dispose();
+    customServiceController.dispose();
     super.onClose();
   }
 }

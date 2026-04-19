@@ -42,13 +42,51 @@ class BookingCalendarSection extends GetView<PublicBookingController> {
               spacing: 12,
               runSpacing: 12,
               children: controller.services
-                  .map(
-                    (service) => BookingChoicePill(
-                      label: service.name,
-                      selected: service.id == controller.selectedServiceId.value,
-                      onTap: () => controller.selectService(service.id),
-                    ),
-                  )
+                  .expand((service) {
+                    if (service.id == 'altro') {
+                      return [
+                        BookingChoicePill(
+                          label: service.name,
+                          selected:
+                              service.id == controller.selectedServiceId.value,
+                          onTap: () => controller.selectService(service.id),
+                        ),
+                        if (controller.isOtherServiceSelected)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6.0),
+                            child: SizedBox(
+                              width: 220,
+                              height: 48,
+                              child: TextField(
+                                controller: controller.customServiceController,
+                                onChanged: controller.updateCustomServiceLabel,
+                                decoration: InputDecoration(
+                                  labelText: 'Specifica il servizio',
+                                  labelStyle: Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium,
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF294190),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ];
+                    }
+
+                    return [
+                      BookingChoicePill(
+                        label: service.name,
+                        selected:
+                            service.id == controller.selectedServiceId.value,
+                        onTap: () => controller.selectService(service.id),
+                      ),
+                    ];
+                  })
                   .toList(growable: false),
             ),
           ),

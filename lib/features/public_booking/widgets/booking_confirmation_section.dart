@@ -27,8 +27,7 @@ class BookingConfirmationSection extends GetView<PublicBookingController> {
           Obx(
             () => BookingSummaryRow(
               label: 'Servizio',
-              value:
-                  controller.selectedService?.name ?? 'Seleziona un servizio',
+              value: controller.selectedServiceDisplayName,
             ),
           ),
           Obx(

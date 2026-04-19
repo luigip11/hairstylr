@@ -20,7 +20,10 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
     final appointmentId = data['id'] as String? ?? '';
     final scheduledFor = (data['scheduledFor'] as Timestamp?)?.toDate();
     final customerName = (data['customerName'] as String?) ?? 'Cliente';
-    final serviceName = (data['serviceName'] as String?) ?? 'Servizio';
+    final serviceName =
+        (data['serviceDisplayName'] as String?) ??
+        (data['serviceName'] as String?) ??
+        'Servizio';
     final notes = (data['notes'] as String?) ?? '';
     final status = (data['status'] as String?) ?? 'requested';
 

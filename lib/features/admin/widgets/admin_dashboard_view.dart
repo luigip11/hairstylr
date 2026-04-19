@@ -153,7 +153,7 @@ class _AdminAppointmentsPanel extends GetView<AdminAreaController> {
       () => AdminPanelShell(
         title: 'Appuntamenti',
         subtitle:
-            'Vista agenda iniziale. Nel prossimo step possiamo aggiungere modifica, conferma e stato.',
+            'Visualizza, modifica e cancella le richieste di prenotazione.',
         child: controller.appointments.isEmpty
             ? const Text(
                 'Nessuna prenotazione ancora presente. Usa il seed o prova una prenotazione dalla vista cliente.',
