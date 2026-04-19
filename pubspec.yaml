@@ -37,6 +37,7 @@ dependencies:
   firebase_core: ^4.7.0
   firebase_auth: ^6.4.0
   cloud_firestore: ^6.3.0
+  get: ^4.7.3
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +60,8 @@ flutter:
   # included with the application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/images/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -90,3 +93,7 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  fonts:
+    - family: StoryScript
+      fonts:
+        - asset: assets/fonts/StoryScript-Regular.ttf

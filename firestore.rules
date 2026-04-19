@@ -11,16 +11,54 @@ service cloud.firestore {
         );
     }
 
+    function isValidPublicAppointment() {
+      return request.resource.data.keys().hasOnly([
+          'customerName',
+          'serviceId',
+          'serviceName',
+          'serviceDisplayName',
+          'serviceCustomLabel',
+          'serviceDurationMinutes',
+          'notes',
+          'status',
+          'scheduledFor',
+          'scheduledDateKey',
+          'slotLabel',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.customerName is string
+        && request.resource.data.customerName.size() > 1
+        && request.resource.data.customerName.size() < 80
+        && request.resource.data.serviceId is string
+        && request.resource.data.serviceName is string
+        && request.resource.data.serviceDisplayName is string
+        && request.resource.data.serviceCustomLabel is string
+        && request.resource.data.serviceCustomLabel.size() < 120
+        && request.resource.data.serviceDurationMinutes is int
+        && request.resource.data.notes is string
+        && request.resource.data.notes.size() < 500
+        && request.resource.data.status == 'requested'
+        && request.resource.data.scheduledFor is timestamp
+        && request.resource.data.scheduledDateKey is string
+        && request.resource.data.slotLabel is string
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
     match /services/{document=**} {
-      allow read, write: if isAdmin();
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /availability/{document=**} {
-      allow read, write: if isAdmin();
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /appointments/{document=**} {
-      allow read, write: if isAdmin();
+      allow read, update, delete: if isAdmin();
+      allow create: if isAdmin() || isValidPublicAppointment();
     }
 
     match /{document=**} {
