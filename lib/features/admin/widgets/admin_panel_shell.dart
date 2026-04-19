@@ -6,11 +6,13 @@ class AdminPanelShell extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.child,
+    this.headerAction,
   });
 
   final String title;
   final String subtitle;
   final Widget child;
+  final Widget? headerAction;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +25,18 @@ class AdminPanelShell extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+              ),
+              if (headerAction != null) ...[
+                const SizedBox(width: 12),
+                headerAction!,
+              ],
+            ],
+          ),
           const SizedBox(height: 6),
           Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 18),

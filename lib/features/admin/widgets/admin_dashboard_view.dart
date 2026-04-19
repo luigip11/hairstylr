@@ -3,9 +3,9 @@ import 'package:get/get.dart';
 
 import '../../../app/app_routes.dart';
 import '../controllers/admin_area_controller.dart';
-import 'admin_appointment_row.dart';
-import 'admin_kpi_panel.dart';
-import 'admin_panel_shell.dart';
+import 'admin_appointments_panel.dart';
+import 'admin_dashboard_setup_section.dart';
+import 'admin_dashboard_stats_section.dart';
 
 class AdminDashboardView extends GetView<AdminAreaController> {
   const AdminDashboardView({super.key});
@@ -14,157 +14,58 @@ class AdminDashboardView extends GetView<AdminAreaController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Agenda admin'),
+        backgroundColor: const Color(0xFFF6F1EA),
+        title: const Text(
+          'Area admin',
+          style: TextStyle(fontFamily: 'StoryScript', fontSize: 32),
+        ),
         actions: [
-          TextButton(
-            onPressed: () => Get.offNamed(AppRoutes.home),
-            child: const Text('Vista cliente'),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: TextButton.icon(
+                onPressed: () => Get.offNamed(AppRoutes.home),
+                label: const Text('Vista cliente'),
+                icon: const Icon(Icons.remove_red_eye),
+              ),
+            ),
           ),
-          TextButton(
-            onPressed: controller.signOut,
-            child: const Text('Logout'),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: TextButton.icon(
+                onPressed: controller.signOut,
+                label: const Text(
+                  'Logout',
+                  style: TextStyle(color: Colors.white),
+                ),
+                icon: const Icon(Icons.logout_rounded, color: Colors.white),
+              ),
+            ),
           ),
+          const SizedBox(width: 12),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+      body: const SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: const [
-            _AdminDashboardStats(),
+          children: [
+            AdminDashboardStatsSection(),
             SizedBox(height: 20),
-            _AdminDashboardSetup(),
+            AdminDashboardSetupSection(),
             SizedBox(height: 20),
-            _AdminAppointmentsPanel(),
+            AdminAppointmentsPanel(),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _AdminDashboardStats extends GetView<AdminAreaController> {
-  const _AdminDashboardStats();
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(
-      () => Wrap(
-        spacing: 20,
-        runSpacing: 20,
-        children: [
-          SizedBox(
-            width: 320,
-            child: AdminKpiPanel(
-              label: 'Appuntamenti in agenda',
-              value: '${controller.appointments.length}',
-              detail: 'Richieste e slot prenotati',
-            ),
-          ),
-          SizedBox(
-            width: 320,
-            child: AdminKpiPanel(
-              label: 'Admin attivo',
-              value: controller.currentUser.value?.email ?? 'admin',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AdminDashboardSetup extends GetView<AdminAreaController> {
-  const _AdminDashboardSetup();
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 20,
-      runSpacing: 20,
-      children: [
-        SizedBox(
-          width: 360,
-          child: AdminPanelShell(
-            title: 'Setup veloce',
-            subtitle:
-                'Inizializza servizi, disponibilita settimanale e documento placeholder.',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Obx(
-                  () => FilledButton(
-                    onPressed: controller.isSeeding.value
-                        ? null
-                        : controller.seedCollections,
-                    child: Text(
-                      controller.isSeeding.value
-                          ? 'Aggiornamento in corso...'
-                          : 'Aggiorna setup iniziale',
-                    ),
-                  ),
-                ),
-                Obx(() {
-                  final info = controller.infoMessage.value;
-                  if (info == null || info.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 14),
-                    child: Text(info),
-                  );
-                }),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(
-          width: 520,
-          child: AdminPanelShell(
-            title: 'Promemoria operativo',
-            subtitle:
-                'Per ora il flusso pubblico prenota direttamente uno slot e crea la richiesta in Firestore.',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('1. Aggiorna services e availability da Firestore.'),
-                SizedBox(height: 8),
-                Text(
-                  '2. Le clienti vedono solo la pagina pubblica e prenotano senza account.',
-                ),
-                SizedBox(height: 8),
-                Text('3. L area admin resta separata su /admin.'),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AdminAppointmentsPanel extends GetView<AdminAreaController> {
-  const _AdminAppointmentsPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(
-      () => AdminPanelShell(
-        title: 'Appuntamenti',
-        subtitle:
-            'Visualizza, modifica e cancella le richieste di prenotazione.',
-        child: controller.appointments.isEmpty
-            ? const Text(
-                'Nessuna prenotazione ancora presente. Usa il seed o prova una prenotazione dalla vista cliente.',
-              )
-            : Column(
-                children: controller.appointments
-                    .map(
-                      (appointment) => AdminAppointmentRow(data: appointment),
-                    )
-                    .toList(growable: false),
-              ),
       ),
     );
   }

@@ -23,7 +23,8 @@ class AdminUnauthorizedPanel extends StatelessWidget {
             padding: const EdgeInsets.all(24),
             child: AdminPanelShell(
               title: 'Accesso negato',
-              subtitle: 'L utente $email non e autorizzato come amministratore.',
+              subtitle:
+                  'L\'utente $email non e autorizzato come amministratore.',
               child: FilledButton(
                 onPressed: controller.signOut,
                 child: const Text('Esci'),

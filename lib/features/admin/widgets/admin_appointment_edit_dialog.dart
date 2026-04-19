@@ -2,14 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../app/app_theme.dart';
 import '../../../core/models/booking_support.dart';
 import '../controllers/admin_area_controller.dart';
+import 'admin_popup_selector.dart';
 
 class AdminAppointmentEditDialog extends StatefulWidget {
-  const AdminAppointmentEditDialog({
-    super.key,
-    required this.data,
-  });
+  const AdminAppointmentEditDialog({super.key, required this.data});
 
   final Map<String, dynamic> data;
 
@@ -27,11 +26,7 @@ class _AdminAppointmentEditDialogState
 
   AdminAreaController get controller => Get.find<AdminAreaController>();
 
-  static const _statusOptions = <String>[
-    'requested',
-    'confirmed',
-    'completed',
-  ];
+  static const _statusOptions = <String>['requested', 'confirmed', 'completed'];
 
   @override
   void initState() {
@@ -66,8 +61,8 @@ class _AdminAppointmentEditDialogState
 
     return AlertDialog(
       title: const Text('Modifica appuntamento'),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
+      content: SizedBox(
+        width: 350,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -75,7 +70,7 @@ class _AdminAppointmentEditDialogState
             children: [
               if (scheduledFor != null)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
+                  padding: const EdgeInsets.only(bottom: 25),
                   child: Text(
                     'Slot: ${formatDate(scheduledFor)} alle ${formatTime(scheduledFor)}',
                     style: Theme.of(context).textTheme.bodyMedium,
@@ -91,27 +86,37 @@ class _AdminAppointmentEditDialogState
                 decoration: const InputDecoration(labelText: 'Servizio'),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
+              const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Text(
+                  'Stato',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF556072),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              AdminPopupSelector<String>(
                 value: _status,
-                decoration: const InputDecoration(labelText: 'Stato'),
-                items: _statusOptions
+                items: _statusEntries
                     .map(
-                      (value) => DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(_labelForStatus(value)),
+                      (entry) => AdminPopupSelectorItem<String>(
+                        value: entry.value,
+                        label: entry.label,
+                        icon: entry.icon,
+                        iconColor: entry.color,
                       ),
                     )
                     .toList(growable: false),
                 onChanged: (value) {
-                  if (value == null) {
-                    return;
-                  }
                   setState(() {
                     _status = value;
                   });
                 },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               TextField(
                 controller: _notesController,
                 minLines: 3,
@@ -154,11 +159,39 @@ class _AdminAppointmentEditDialogState
       ],
     );
   }
-
-  String _labelForStatus(String value) => switch (value) {
-    'requested' => 'Richiesto',
-    'confirmed' => 'Confermato',
-    'completed' => 'Completato',
-    _ => value,
-  };
 }
+
+class _StatusConfig {
+  const _StatusConfig({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  final String value;
+  final String label;
+  final IconData icon;
+  final Color color;
+}
+
+const _statusEntries = <_StatusConfig>[
+  _StatusConfig(
+    value: 'requested',
+    label: 'Richiesto',
+    icon: Icons.schedule_rounded,
+    color: Color(0xFFA86B12),
+  ),
+  _StatusConfig(
+    value: 'confirmed',
+    label: 'Confermato',
+    icon: Icons.verified_rounded,
+    color: Color(0xFF2A7C4B),
+  ),
+  _StatusConfig(
+    value: 'completed',
+    label: 'Completato',
+    icon: Icons.task_alt_rounded,
+    color: AppTheme.accentBlueDark,
+  ),
+];

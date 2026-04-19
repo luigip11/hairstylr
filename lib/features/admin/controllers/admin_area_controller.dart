@@ -6,7 +6,39 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../core/models/booking_support.dart';
 import '../../../core/services/bootstrap_service.dart';
+
+enum AdminUtilizationRange { daily, weekly, monthly }
+
+extension AdminUtilizationRangeX on AdminUtilizationRange {
+  String get label => switch (this) {
+    AdminUtilizationRange.daily => 'Giornaliero',
+    AdminUtilizationRange.weekly => 'Settimanale',
+    AdminUtilizationRange.monthly => 'Mensile',
+  };
+
+  String get title => switch (this) {
+    AdminUtilizationRange.daily => 'Occupazione giornaliera',
+    AdminUtilizationRange.weekly => 'Occupazione settimanale',
+    AdminUtilizationRange.monthly => 'Occupazione mensile',
+  };
+
+  String get subtitle => switch (this) {
+    AdminUtilizationRange.daily =>
+      'Appuntamenti presi rispetto agli slot disponibili per oggi.',
+    AdminUtilizationRange.weekly =>
+      'Appuntamenti presi rispetto agli slot disponibili nella settimana corrente.',
+    AdminUtilizationRange.monthly =>
+      'Appuntamenti presi rispetto agli slot disponibili nel mese corrente.',
+  };
+
+  String get totalLabel => switch (this) {
+    AdminUtilizationRange.daily => 'Totale slot giornalieri',
+    AdminUtilizationRange.weekly => 'Totale slot settimanali',
+    AdminUtilizationRange.monthly => 'Totale slot mensili',
+  };
+}
 
 class AdminAreaController extends GetxController {
   AdminAreaController()
@@ -25,14 +57,88 @@ class AdminAreaController extends GetxController {
   final infoMessage = RxnString();
   final appointments = <Map<String, dynamic>>[].obs;
   final busyAppointmentIds = <String>{}.obs;
+  final availability = Rxn<AvailabilitySchedule>();
+  final selectedUtilizationRange = AdminUtilizationRange.weekly.obs;
 
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _appointmentsSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _availabilitySubscription;
 
   bool get isAuthorizedAdmin {
     final email = currentUser.value?.email?.toLowerCase().trim();
     return email != null && AppConfig.adminEmails.contains(email);
+  }
+
+  List<AdminUtilizationRange> get utilizationRanges =>
+      AdminUtilizationRange.values;
+
+  int get activeSlotCapacity => slotCapacityFor(selectedUtilizationRange.value);
+
+  int get activeBookedAppointments =>
+      bookedAppointmentsFor(selectedUtilizationRange.value);
+
+  int get activeRemainingSlots =>
+      remainingSlotsFor(selectedUtilizationRange.value);
+
+  double get activeBookedRatio =>
+      bookedRatioFor(selectedUtilizationRange.value);
+
+  int slotCapacityFor(AdminUtilizationRange range) {
+    final schedule = availability.value;
+    if (schedule == null) {
+      return 0;
+    }
+
+    return switch (range) {
+      AdminUtilizationRange.daily => schedule.windowsForDate(DateTime.now()).length,
+      AdminUtilizationRange.weekly => schedule.weeklySchedule.values.fold<int>(
+        0,
+        (sum, slots) => sum + slots.length,
+      ),
+      AdminUtilizationRange.monthly => _countSlotsInRange(
+        schedule,
+        _rangeStart(range),
+        _rangeEnd(range),
+      ),
+    };
+  }
+
+  int bookedAppointmentsFor(AdminUtilizationRange range) {
+    final rangeStart = _rangeStart(range);
+    final rangeEnd = _rangeEnd(range);
+
+    return appointments.where((appointment) {
+      final timestamp = appointment['scheduledFor'];
+      final scheduledFor = switch (timestamp) {
+        Timestamp value => value.toDate(),
+        DateTime value => value,
+        _ => null,
+      };
+
+      return scheduledFor != null &&
+          !scheduledFor.isBefore(rangeStart) &&
+          scheduledFor.isBefore(rangeEnd);
+    }).length;
+  }
+
+  int remainingSlotsFor(AdminUtilizationRange range) {
+    final remaining = slotCapacityFor(range) - bookedAppointmentsFor(range);
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  double bookedRatioFor(AdminUtilizationRange range) {
+    final totalSlots = slotCapacityFor(range);
+    if (totalSlots == 0) {
+      return 0;
+    }
+
+    return bookedAppointmentsFor(range) / totalSlots;
+  }
+
+  void selectUtilizationRange(AdminUtilizationRange range) {
+    selectedUtilizationRange.value = range;
   }
 
   @override
@@ -42,6 +148,15 @@ class AdminAreaController extends GetxController {
       currentUser.value = user;
       _bindAppointments();
     });
+    _availabilitySubscription = _firestore
+        .collection('availability')
+        .doc('default_week')
+        .snapshots()
+        .listen((snapshot) {
+          availability.value = snapshot.exists
+              ? AvailabilitySchedule.fromDocument(snapshot)
+              : null;
+        });
   }
 
   void _bindAppointments() {
@@ -195,10 +310,48 @@ class AdminAreaController extends GetxController {
     return false;
   }
 
+  DateTime _rangeStart(AdminUtilizationRange range) {
+    final now = dateOnly(DateTime.now());
+
+    return switch (range) {
+      AdminUtilizationRange.daily => now,
+      AdminUtilizationRange.weekly =>
+        now.subtract(Duration(days: now.weekday - 1)),
+      AdminUtilizationRange.monthly => DateTime(now.year, now.month),
+    };
+  }
+
+  DateTime _rangeEnd(AdminUtilizationRange range) {
+    final start = _rangeStart(range);
+
+    return switch (range) {
+      AdminUtilizationRange.daily => start.add(const Duration(days: 1)),
+      AdminUtilizationRange.weekly => start.add(const Duration(days: 7)),
+      AdminUtilizationRange.monthly => DateTime(start.year, start.month + 1),
+    };
+  }
+
+  int _countSlotsInRange(
+    AvailabilitySchedule schedule,
+    DateTime start,
+    DateTime end,
+  ) {
+    var total = 0;
+    var cursor = start;
+
+    while (cursor.isBefore(end)) {
+      total += schedule.windowsForDate(cursor).length;
+      cursor = cursor.add(const Duration(days: 1));
+    }
+
+    return total;
+  }
+
   @override
   void onClose() {
     _authSubscription?.cancel();
     _appointmentsSubscription?.cancel();
+    _availabilitySubscription?.cancel();
     emailController.dispose();
     passwordController.dispose();
     super.onClose();
