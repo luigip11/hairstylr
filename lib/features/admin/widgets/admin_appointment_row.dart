@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../app/app_colors.dart';
 import '../../../app/app_theme.dart';
 import '../../../core/models/booking_support.dart';
 import '../controllers/admin_area_controller.dart';
@@ -31,7 +32,7 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F1EA),
+        color: AppColors.appCream,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -55,7 +56,7 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
                 ),
                 Text(
                   scheduledFor == null ? '--' : monthShort(scheduledFor),
-                  style: const TextStyle(color: Color(0xFF5D6664)),
+                  style: const TextStyle(color: AppColors.textMutedGreen),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -88,7 +89,9 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
                   const SizedBox(height: 8),
                   Text(
                     notes,
-                    style: const TextStyle(color: Color(0xFF5E6966)),
+                    style: const TextStyle(
+                      color: AppColors.textMutedGreenAlt,
+                    ),
                   ),
                 ],
               ],
@@ -126,10 +129,10 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
                       : () => controller.confirmAppointment(appointmentId),
                   style: IconButton.styleFrom(
                     backgroundColor: isConfirmed
-                        ? const Color(0xFFE2F3E8)
-                        : const Color(0xFFE8EEFF),
+                        ? AppColors.successSurface
+                        : AppColors.confirmedBlueSurface,
                     foregroundColor: isConfirmed
-                        ? const Color(0xFF2A7C4B)
+                        ? AppColors.successGreen
                         : AppTheme.accentBlueDark,
                   ),
                   icon: Icon(
@@ -143,8 +146,8 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
                       ? null
                       : () => _confirmDelete(context, appointmentId),
                   style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFE7E7),
-                    foregroundColor: const Color(0xFFB33535),
+                    backgroundColor: AppColors.dangerSurface,
+                    foregroundColor: AppColors.dangerRed,
                   ),
                   icon: const Icon(Icons.delete_outline_rounded),
                 ),
@@ -193,14 +196,14 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final backgroundColor = switch (status) {
-      'confirmed' => const Color(0xFFE2F3E8),
-      'completed' => const Color(0xFFE7F0FF),
-      _ => const Color(0xFFFFF1D9),
+      'confirmed' => AppColors.successSurface,
+      'completed' => AppColors.completedSurface,
+      _ => AppColors.warningSurface,
     };
     final foregroundColor = switch (status) {
-      'confirmed' => const Color(0xFF2A7C4B),
+      'confirmed' => AppColors.successGreen,
       'completed' => AppTheme.accentBlueDark,
-      _ => const Color(0xFFA86B12),
+      _ => AppColors.warningOrange,
     };
 
     return Container(

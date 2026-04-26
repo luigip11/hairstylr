@@ -46,7 +46,7 @@ class _AdminAppointmentsPanelState extends State<AdminAppointmentsPanel> {
             ? const Padding(
                 padding: EdgeInsets.only(bottom: 20),
                 child: Text(
-                  'Nessuna prenotazione ancora presente. Usa il seed o prova una prenotazione dalla vista cliente.',
+                  'Nessuna prenotazione ancora presente. Prova una prenotazione dalla home page.',
                 ),
               )
             : SizedBox(

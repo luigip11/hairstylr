@@ -5,6 +5,8 @@ import '../controllers/admin_area_controller.dart';
 class AdminBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut(AdminAreaController.new);
+    if (!Get.isRegistered<AdminAreaController>()) {
+      Get.lazyPut(AdminAreaController.new);
+    }
   }
 }

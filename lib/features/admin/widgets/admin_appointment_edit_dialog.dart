@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../app/app_colors.dart';
 import '../../../app/app_theme.dart';
 import '../../../core/models/booking_support.dart';
 import '../controllers/admin_area_controller.dart';
@@ -93,7 +94,7 @@ class _AdminAppointmentEditDialogState
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF556072),
+                    color: AppColors.textGreyBlue,
                   ),
                 ),
               ),
@@ -180,13 +181,13 @@ const _statusEntries = <_StatusConfig>[
     value: 'requested',
     label: 'Richiesto',
     icon: Icons.schedule_rounded,
-    color: Color(0xFFA86B12),
+    color: AppColors.warningOrange,
   ),
   _StatusConfig(
     value: 'confirmed',
     label: 'Confermato',
     icon: Icons.verified_rounded,
-    color: Color(0xFF2A7C4B),
+    color: AppColors.successGreen,
   ),
   _StatusConfig(
     value: 'completed',

@@ -2,63 +2,31 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAdmin() {
+    function canAccessWorkspace(workspaceId) {
       return request.auth != null
         && request.auth.token.email != null
         && (
-          request.auth.token.email == "luigi.irons11@gmail.com"
-          || request.auth.token.email == "gnagna97@hotmail.com"
+          (workspaceId == "luigi-test"
+            && request.auth.token.email == "luigi.irons11@gmail.com")
+          || (workspaceId == "hairstylr"
+            && request.auth.token.email == "gnagna97@hotmail.com")
         );
     }
 
-    function isValidPublicAppointment() {
-      return request.resource.data.keys().hasOnly([
-          'customerName',
-          'serviceId',
-          'serviceName',
-          'serviceDisplayName',
-          'serviceCustomLabel',
-          'serviceDurationMinutes',
-          'notes',
-          'status',
-          'scheduledFor',
-          'scheduledDateKey',
-          'slotLabel',
-          'createdAt',
-          'updatedAt'
-        ])
-        && request.resource.data.customerName is string
-        && request.resource.data.customerName.size() > 1
-        && request.resource.data.customerName.size() < 80
-        && request.resource.data.serviceId is string
-        && request.resource.data.serviceName is string
-        && request.resource.data.serviceDisplayName is string
-        && request.resource.data.serviceCustomLabel is string
-        && request.resource.data.serviceCustomLabel.size() < 120
-        && request.resource.data.serviceDurationMinutes is int
-        && request.resource.data.notes is string
-        && request.resource.data.notes.size() < 500
-        && request.resource.data.status == 'requested'
-        && request.resource.data.scheduledFor is timestamp
-        && request.resource.data.scheduledDateKey is string
-        && request.resource.data.slotLabel is string
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
-    }
+    match /workspaces/{workspaceId} {
+      allow read, write: if canAccessWorkspace(workspaceId);
 
-    match /services/{document=**} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
+      match /services/{document=**} {
+        allow read, write: if canAccessWorkspace(workspaceId);
+      }
 
-    match /availability/{document=**} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
+      match /availability/{document=**} {
+        allow read, write: if canAccessWorkspace(workspaceId);
+      }
 
-    match /appointments/{document=**} {
-      allow read, update, delete: if isAdmin();
-      allow create: if isAdmin() || isValidPublicAppointment();
+      match /appointments/{document=**} {
+        allow read, write: if canAccessWorkspace(workspaceId);
+      }
     }
 
     match /{document=**} {

@@ -16,8 +16,17 @@ class BootstrapService {
 
   final FirebaseFirestore _firestore;
 
-  Future<void> seedInitialData() async {
+  Future<void> seedInitialData({
+    required String workspaceId,
+    required String workspaceName,
+  }) async {
     final batch = _firestore.batch();
+    final workspaceRef = _firestore.collection('workspaces').doc(workspaceId);
+
+    batch.set(workspaceRef, {
+      'name': workspaceName,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
     final services = [
       {
@@ -49,7 +58,9 @@ class BootstrapService {
     ];
 
     for (final service in services) {
-      final ref = _firestore.collection('services').doc(service['id']! as String);
+      final ref = workspaceRef
+          .collection('services')
+          .doc(service['id']! as String);
       batch.set(ref, {
         'name': service['name'],
         'description': service['description'],
@@ -61,7 +72,7 @@ class BootstrapService {
       }, SetOptions(merge: true));
     }
 
-    final availabilityRef = _firestore
+    final availabilityRef = workspaceRef
         .collection('availability')
         .doc('default_week');
     batch.set(availabilityRef, {
@@ -78,7 +89,7 @@ class BootstrapService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    final appointmentRef = _firestore.collection('appointments').doc('_bootstrap');
+    final appointmentRef = workspaceRef.collection('appointments').doc('_bootstrap');
     batch.set(appointmentRef, {
       'customerName': 'Seed',
       'serviceId': 'taglio',

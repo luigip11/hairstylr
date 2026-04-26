@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../app/app_routes.dart';
+import '../../../app/app_colors.dart';
 import '../controllers/admin_area_controller.dart';
 import 'admin_appointments_panel.dart';
 import 'admin_dashboard_setup_section.dart';
@@ -14,26 +14,26 @@ class AdminDashboardView extends GetView<AdminAreaController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F1EA),
+        backgroundColor: AppColors.appCream,
         title: const Text(
           'Area admin',
           style: TextStyle(fontFamily: 'StoryScript', fontSize: 32),
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: TextButton.icon(
-                onPressed: () => Get.offNamed(AppRoutes.home),
-                label: const Text('Vista cliente'),
-                icon: const Icon(Icons.remove_red_eye),
-              ),
-            ),
-          ),
+          // Padding(
+          //   padding: const EdgeInsets.all(8),
+          //   child: Container(
+          //     decoration: BoxDecoration(
+          //       color: Colors.white,
+          //       borderRadius: BorderRadius.circular(18),
+          //     ),
+          //     child: TextButton.icon(
+          //       onPressed: () => Get.offNamed(AppRoutes.home),
+          //       label: const Text('Vista cliente'),
+          //       icon: const Icon(Icons.remove_red_eye),
+          //     ),
+          //   ),
+          // ),
           Padding(
             padding: const EdgeInsets.all(8),
             child: Container(

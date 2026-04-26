@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/app_colors.dart';
 import '../../../app/app_theme.dart';
 
 class AdminPopupSelectorItem<T> {
@@ -50,10 +51,10 @@ class _AdminPopupSelectorState<T> extends State<AdminPopupSelector<T>> {
         onTap: _openMenu,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: const Color(0xFFF6F8FE),
+            color: AppColors.softPanel,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: _isOpen ? AppTheme.accentBlue : const Color(0xFFD9E5F8),
+              color: _isOpen ? AppTheme.accentBlue : AppColors.borderBlueSoft,
             ),
           ),
           child: Padding(
@@ -139,7 +140,7 @@ class _AdminPopupSelectorState<T> extends State<AdminPopupSelector<T>> {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: item.value == widget.value
-                      ? const Color(0xFFEAF1FF)
+                      ? AppColors.softBlueTint
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -166,7 +167,7 @@ class _AdminPopupSelectorState<T> extends State<AdminPopupSelector<T>> {
                           style: TextStyle(
                             color: item.value == widget.value
                                 ? AppTheme.accentBlueDark
-                                : const Color(0xFF2F3950),
+                                : AppColors.textSlate,
                             fontWeight: item.value == widget.value
                                 ? FontWeight.w700
                                 : FontWeight.w500,

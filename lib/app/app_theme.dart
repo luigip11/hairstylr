@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 
+import 'app_colors.dart';
+
 class AppTheme {
-  static const accentBlue = Color(0xFF355DDB);
-  static const accentBlueDark = Color(0xFF2748B4);
+  static const accentBlue = AppColors.accentBlue;
+  static const accentBlueDark = AppColors.accentBlueDark;
 
   static ThemeData get light {
     return ThemeData(
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF1D6F5F),
+        seedColor: AppColors.brandTeal,
         brightness: Brightness.light,
       ),
-      scaffoldBackgroundColor: const Color(0xFFF6F1EA),
+      scaffoldBackgroundColor: AppColors.appCream,
       useMaterial3: true,
       inputDecorationTheme: InputDecorationTheme(
         filled: true,

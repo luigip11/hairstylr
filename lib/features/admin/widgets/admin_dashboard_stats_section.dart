@@ -18,7 +18,16 @@ class AdminDashboardStatsSection extends GetView<AdminAreaController> {
             width: 400,
             height: 144,
             child: AdminKpiPanel(
-              label: 'Admin attivo',
+              label: 'Workspace attivo',
+              value: controller.currentWorkspaceName,
+              detail: controller.currentUser.value?.email ?? 'admin',
+            ),
+          ),
+          SizedBox(
+            width: 400,
+            height: 144,
+            child: AdminKpiPanel(
+              label: 'Account attivo',
               value: controller.currentUser.value?.email ?? 'admin',
             ),
           ),

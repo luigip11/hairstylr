@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-const bookingAccentBlue = Color(0xFF355DDB);
+import '../../../app/app_colors.dart';
+
+const bookingAccentBlue = AppColors.accentBlue;
+const bookingDeepBlue = AppColors.bookingDeepBlue;
 
 class BookingChoicePill extends StatelessWidget {
   const BookingChoicePill({
@@ -22,16 +25,16 @@ class BookingChoicePill extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: BoxDecoration(
-          color: selected ? bookingAccentBlue : const Color(0xFFF1F5FF),
+          color: selected ? bookingAccentBlue : AppColors.softBlue,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: selected ? bookingAccentBlue : const Color(0xFFD9E3FF),
+            color: selected ? bookingAccentBlue : AppColors.borderBlue,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? bookingAccentBlue : const Color(0xFF294190),
+            color: selected ? bookingAccentBlue : bookingDeepBlue,
             fontWeight: FontWeight.w600,
           ),
         ),

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../app/app_colors.dart';
 import '../../../app/app_theme.dart';
 import '../controllers/admin_area_controller.dart';
 import 'admin_panel_shell.dart';
@@ -64,7 +65,9 @@ class AdminUtilizationChartCard extends GetView<AdminAreaController> {
                               const SizedBox(height: 4),
                               const Text(
                                 'occupati',
-                                style: TextStyle(color: Color(0xFF6A7485)),
+                                style: TextStyle(
+                                  color: AppColors.textChartMuted,
+                                ),
                               ),
                             ],
                           ),
@@ -84,7 +87,7 @@ class AdminUtilizationChartCard extends GetView<AdminAreaController> {
                         ),
                         const SizedBox(height: 12),
                         _UtilizationLegendRow(
-                          color: const Color(0xFFB8CCE9),
+                          color: AppColors.chartTrackBlue,
                           label: 'Disponibili',
                           value: '$remainingSlots',
                         ),
@@ -92,7 +95,7 @@ class AdminUtilizationChartCard extends GetView<AdminAreaController> {
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF6F8FE),
+                            color: AppColors.softPanel,
                             borderRadius: BorderRadius.circular(18),
                           ),
                           child: Row(
@@ -120,7 +123,7 @@ class AdminUtilizationChartCard extends GetView<AdminAreaController> {
                 ],
               )
             : Text(
-                'Nessuna disponibilita disponibile per la vista ${range.label.toLowerCase()}. Aggiorna il setup iniziale per vedere il grafico.',
+                'Nessuna disponibilità disponibile per la vista ${range.label.toLowerCase()}. Aggiorna il setup iniziale per vedere il grafico.',
               ),
       );
     });
@@ -186,7 +189,7 @@ class _UtilizationPiePainter extends CustomPainter {
     final availablePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 28
-      ..color = const Color(0xFFD9E5F8)
+      ..color = AppColors.borderBlueSoft
       ..strokeCap = StrokeCap.round;
 
     final bookedPaint = Paint()
