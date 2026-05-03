@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../app/app_colors.dart';
 import '../../../app/app_theme.dart';
-import '../../../app/app_routes.dart';
 import '../controllers/admin_area_controller.dart';
 import 'admin_panel_shell.dart';
 
@@ -79,11 +79,6 @@ class AdminLoginPanel extends GetView<AdminAreaController> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        TextButton(
-                          onPressed: () => Get.offNamed(AppRoutes.home),
-                          child: const Text('Torna alla prenotazione pubblica'),
-                        ),
                       ],
                     ),
                   ),
@@ -100,7 +95,7 @@ class AdminLoginPanel extends GetView<AdminAreaController> {
 InputDecoration _adminFieldDecoration(String label) {
   final border = OutlineInputBorder(
     borderRadius: BorderRadius.circular(20),
-    borderSide: const BorderSide(color: Color(0xFFD5DCEB), width: 1.2),
+    borderSide: const BorderSide(color: AppColors.borderNeutral, width: 1.2),
   );
 
   return InputDecoration(

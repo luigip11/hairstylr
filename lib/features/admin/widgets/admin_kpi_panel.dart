@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/app_colors.dart';
+
 class AdminKpiPanel extends StatelessWidget {
   const AdminKpiPanel({
     super.key,
@@ -17,13 +19,13 @@ class AdminKpiPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: const Color(0xFF18352E),
+        color: AppColors.adminDarkGreen,
         borderRadius: BorderRadius.circular(26),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Color(0xFF9EC3B9))),
+          Text(label, style: const TextStyle(color: AppColors.adminMintText)),
           const SizedBox(height: 10),
           Text(
             value,
@@ -36,7 +38,10 @@ class AdminKpiPanel extends StatelessWidget {
           const SizedBox(height: 10),
           detail == null
               ? const SizedBox()
-              : Text(detail!, style: const TextStyle(color: Color(0xFFE0F0EA))),
+              : Text(
+                  detail!,
+                  style: const TextStyle(color: AppColors.adminMintLight),
+                ),
         ],
       ),
     );

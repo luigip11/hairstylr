@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/app_colors.dart';
 import '../../../core/models/booking_support.dart';
 import 'booking_choice_pill.dart';
 
@@ -29,7 +30,7 @@ class BookingMonthGrid extends StatelessWidget {
                     child: Text(
                       label,
                       style: const TextStyle(
-                        color: Color(0xFF6A768E),
+                        color: AppColors.textCalendarMuted,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -64,12 +65,13 @@ class BookingMonthGrid extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isSelected
                       ? bookingAccentBlue
-                      : const Color(0xFFF2F6FF),
+                      : AppColors.softBlueAlt,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
                     color: isToday && !isSelected
                         ? bookingAccentBlue.withValues(alpha: 0.45)
                         : Colors.transparent,
+                    width: isToday && !isSelected ? 3 : 1,
                   ),
                 ),
                 child: Center(
@@ -78,7 +80,7 @@ class BookingMonthGrid extends StatelessWidget {
                     style: TextStyle(
                       color: isSelected
                           ? bookingAccentBlue
-                          : const Color(0xFF1A2850),
+                          : AppColors.textNavy,
                       fontWeight: FontWeight.w700,
                       fontSize: 17,
                     ),

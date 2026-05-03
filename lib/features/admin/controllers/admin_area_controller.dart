@@ -11,6 +11,8 @@ import '../../../core/services/bootstrap_service.dart';
 
 enum AdminUtilizationRange { daily, weekly, monthly }
 
+enum AdminDashboardSection { dashboard, user, appointments, customers }
+
 extension AdminUtilizationRangeX on AdminUtilizationRange {
   String get label => switch (this) {
     AdminUtilizationRange.daily => 'Giornaliero',
@@ -58,7 +60,10 @@ class AdminAreaController extends GetxController {
   final appointments = <Map<String, dynamic>>[].obs;
   final busyAppointmentIds = <String>{}.obs;
   final availability = Rxn<AvailabilitySchedule>();
+  final selectedSection = AdminDashboardSection.dashboard.obs;
   final selectedUtilizationRange = AdminUtilizationRange.weekly.obs;
+  final selectedAppointmentsRange = AdminUtilizationRange.daily.obs;
+  final currentWorkspace = Rxn<WorkspaceConfig>();
 
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
@@ -67,9 +72,13 @@ class AdminAreaController extends GetxController {
   _availabilitySubscription;
 
   bool get isAuthorizedAdmin {
-    final email = currentUser.value?.email?.toLowerCase().trim();
-    return email != null && AppConfig.adminEmails.contains(email);
+    return currentWorkspace.value != null;
   }
+
+  String? get currentWorkspaceId => currentWorkspace.value?.id;
+
+  String get currentWorkspaceName =>
+      currentWorkspace.value?.name ?? 'Workspace';
 
   List<AdminUtilizationRange> get utilizationRanges =>
       AdminUtilizationRange.values;
@@ -85,6 +94,9 @@ class AdminAreaController extends GetxController {
   double get activeBookedRatio =>
       bookedRatioFor(selectedUtilizationRange.value);
 
+  List<Map<String, dynamic>> get filteredAppointments =>
+      appointmentsForRange(selectedAppointmentsRange.value);
+
   int slotCapacityFor(AdminUtilizationRange range) {
     final schedule = availability.value;
     if (schedule == null) {
@@ -92,7 +104,8 @@ class AdminAreaController extends GetxController {
     }
 
     return switch (range) {
-      AdminUtilizationRange.daily => schedule.windowsForDate(DateTime.now()).length,
+      AdminUtilizationRange.daily =>
+        schedule.windowsForDate(DateTime.now()).length,
       AdminUtilizationRange.weekly => schedule.weeklySchedule.values.fold<int>(
         0,
         (sum, slots) => sum + slots.length,
@@ -110,12 +123,7 @@ class AdminAreaController extends GetxController {
     final rangeEnd = _rangeEnd(range);
 
     return appointments.where((appointment) {
-      final timestamp = appointment['scheduledFor'];
-      final scheduledFor = switch (timestamp) {
-        Timestamp value => value.toDate(),
-        DateTime value => value,
-        _ => null,
-      };
+      final scheduledFor = _appointmentDate(appointment);
 
       return scheduledFor != null &&
           !scheduledFor.isBefore(rangeStart) &&
@@ -141,14 +149,56 @@ class AdminAreaController extends GetxController {
     selectedUtilizationRange.value = range;
   }
 
+  void selectAppointmentsRange(AdminUtilizationRange range) {
+    selectedAppointmentsRange.value = range;
+  }
+
+  void selectSection(AdminDashboardSection section) {
+    selectedSection.value = section;
+  }
+
+  List<Map<String, dynamic>> appointmentsForRange(AdminUtilizationRange range) {
+    final rangeStart = _rangeStart(range);
+    final rangeEnd = _rangeEnd(range);
+
+    return appointments.where((appointment) {
+      final scheduledFor = _appointmentDate(appointment);
+      return scheduledFor != null &&
+          !scheduledFor.isBefore(rangeStart) &&
+          scheduledFor.isBefore(rangeEnd);
+    }).toList(growable: false);
+  }
+
   @override
   void onInit() {
     super.onInit();
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
       currentUser.value = user;
+      currentWorkspace.value = AppConfig.workspaceForEmail(user?.email);
+      _bindAvailability();
       _bindAppointments();
     });
-    _availabilitySubscription = _firestore
+  }
+
+  DocumentReference<Map<String, dynamic>>? get _workspaceRef {
+    final workspaceId = currentWorkspaceId;
+    if (workspaceId == null) {
+      return null;
+    }
+
+    return _firestore.collection('workspaces').doc(workspaceId);
+  }
+
+  void _bindAvailability() {
+    _availabilitySubscription?.cancel();
+    availability.value = null;
+
+    final workspaceRef = _workspaceRef;
+    if (workspaceRef == null) {
+      return;
+    }
+
+    _availabilitySubscription = workspaceRef
         .collection('availability')
         .doc('default_week')
         .snapshots()
@@ -167,7 +217,12 @@ class AdminAreaController extends GetxController {
       return;
     }
 
-    _appointmentsSubscription = _firestore
+    final workspaceRef = _workspaceRef;
+    if (workspaceRef == null) {
+      return;
+    }
+
+    _appointmentsSubscription = workspaceRef
         .collection('appointments')
         .orderBy('scheduledFor')
         .snapshots()
@@ -189,26 +244,16 @@ class AdminAreaController extends GetxController {
     errorMessage.value = null;
 
     try {
-      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text,
       );
-
-      final email = credential.user?.email?.toLowerCase().trim();
-      if (email == null || !AppConfig.adminEmails.contains(email)) {
-        await FirebaseAuth.instance.signOut();
-        throw FirebaseAuthException(
-          code: 'not-admin',
-          message: 'Questo account non e autorizzato come amministratore.',
-        );
-      }
     } on FirebaseAuthException catch (error) {
       errorMessage.value = switch (error.code) {
         'invalid-email' => 'Email non valida.',
         'invalid-credential' => 'Credenziali non valide.',
         'wrong-password' => 'Password non corretta.',
         'user-not-found' => 'Utente non trovato.',
-        'not-admin' => error.message,
         _ => error.message ?? 'Accesso non riuscito.',
       };
     } finally {
@@ -225,9 +270,18 @@ class AdminAreaController extends GetxController {
     infoMessage.value = null;
 
     try {
-      await _bootstrapService.seedInitialData();
+      final workspace = currentWorkspace.value;
+      if (workspace == null) {
+        infoMessage.value = 'Workspace non configurato per questo account.';
+        return;
+      }
+
+      await _bootstrapService.seedInitialData(
+        workspaceId: workspace.id,
+        workspaceName: workspace.name,
+      );
       infoMessage.value =
-          'Servizi e disponibilita iniziali aggiornati. Puoi tornare alla home pubblica e iniziare a raccogliere prenotazioni.';
+          'Servizi e disponibilità iniziali aggiornati per ${workspace.name}.';
     } catch (error) {
       infoMessage.value = 'Seed non riuscito: $error';
     } finally {
@@ -239,10 +293,14 @@ class AdminAreaController extends GetxController {
     return _runAppointmentAction(
       appointmentId,
       () async {
-        await _firestore.collection('appointments').doc(appointmentId).update({
-          'status': 'confirmed',
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        final workspaceRef = _workspaceRef;
+        if (workspaceRef == null) {
+          throw StateError('Workspace non configurato.');
+        }
+
+        await workspaceRef.collection('appointments').doc(appointmentId).update(
+          {'status': 'confirmed', 'updatedAt': FieldValue.serverTimestamp()},
+        );
       },
       successMessage: 'Appuntamento confermato.',
       errorPrefix: 'Conferma non riuscita',
@@ -259,13 +317,21 @@ class AdminAreaController extends GetxController {
     return _runAppointmentAction(
       appointmentId,
       () async {
-        await _firestore.collection('appointments').doc(appointmentId).update({
-          'customerName': customerName.trim(),
-          'serviceName': serviceName.trim(),
-          'notes': notes.trim(),
-          'status': status,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        final workspaceRef = _workspaceRef;
+        if (workspaceRef == null) {
+          throw StateError('Workspace non configurato.');
+        }
+
+        await workspaceRef
+            .collection('appointments')
+            .doc(appointmentId)
+            .update({
+              'customerName': customerName.trim(),
+              'serviceName': serviceName.trim(),
+              'notes': notes.trim(),
+              'status': status,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
       },
       successMessage: 'Appuntamento aggiornato.',
       errorPrefix: 'Modifica non riuscita',
@@ -276,7 +342,15 @@ class AdminAreaController extends GetxController {
     return _runAppointmentAction(
       appointmentId,
       () async {
-        await _firestore.collection('appointments').doc(appointmentId).delete();
+        final workspaceRef = _workspaceRef;
+        if (workspaceRef == null) {
+          throw StateError('Workspace non configurato.');
+        }
+
+        await workspaceRef
+            .collection('appointments')
+            .doc(appointmentId)
+            .delete();
       },
       successMessage: 'Appuntamento eliminato.',
       errorPrefix: 'Eliminazione non riuscita',
@@ -315,8 +389,9 @@ class AdminAreaController extends GetxController {
 
     return switch (range) {
       AdminUtilizationRange.daily => now,
-      AdminUtilizationRange.weekly =>
-        now.subtract(Duration(days: now.weekday - 1)),
+      AdminUtilizationRange.weekly => now.subtract(
+        Duration(days: now.weekday - 1),
+      ),
       AdminUtilizationRange.monthly => DateTime(now.year, now.month),
     };
   }
@@ -345,6 +420,15 @@ class AdminAreaController extends GetxController {
     }
 
     return total;
+  }
+
+  DateTime? _appointmentDate(Map<String, dynamic> appointment) {
+    final timestamp = appointment['scheduledFor'];
+    return switch (timestamp) {
+      Timestamp value => value.toDate(),
+      DateTime value => value,
+      _ => null,
+    };
   }
 
   @override

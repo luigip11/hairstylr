@@ -36,13 +36,14 @@ class PublicBookingPage extends GetView<PublicBookingController> {
                   const SizedBox(height: 20),
                   Obx(() {
                     final hasServices = controller.services.isNotEmpty;
-                    final hasAvailability = controller.availability.value != null;
+                    final hasAvailability =
+                        controller.availability.value != null;
 
                     if (!hasServices || !hasAvailability) {
                       return const BookingInfoPanel(
                         title: 'Setup iniziale richiesto',
                         body:
-                            'Servizi o disponibilita non ancora pronti. Entra nell area admin per inizializzare la piattaforma.',
+                            'Servizi o disponibilità non ancora pronti. Entra nell area admin per inizializzare la piattaforma.',
                       );
                     }
 

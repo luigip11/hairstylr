@@ -3,8 +3,9 @@ import 'package:get/get.dart';
 
 import '../features/admin/bindings/admin_binding.dart';
 import '../features/admin/pages/admin_area_page.dart';
+import '../features/home/pages/authenticated_home_page.dart';
 import '../features/public_booking/bindings/public_booking_binding.dart';
-import '../features/public_booking/pages/public_booking_page.dart';
+import 'app_binding.dart';
 import 'app_routes.dart';
 import 'app_theme.dart';
 
@@ -17,11 +18,12 @@ class HairstylrApp extends StatelessWidget {
       title: 'Hairstylr',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      initialBinding: AppBinding(),
       initialRoute: _initialRoute(),
       getPages: [
         GetPage(
           name: AppRoutes.home,
-          page: PublicBookingPage.new,
+          page: AuthenticatedHomePage.new,
           binding: PublicBookingBinding(),
         ),
         GetPage(

@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/models/booking_support.dart';
 
 class PublicBookingController extends GetxController {
@@ -18,6 +20,8 @@ class PublicBookingController extends GetxController {
   ).obs;
   final selectedServiceId = RxnString();
   final selectedSlot = Rxn<TimeSlot>();
+  final customSlots = <TimeSlot>[].obs;
+  final isEditingCustomSlots = false.obs;
   final isSubmitting = false.obs;
   final feedbackMessage = RxnString();
   final customerName = ''.obs;
@@ -29,6 +33,7 @@ class PublicBookingController extends GetxController {
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _servicesSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _availabilitySubscription;
+  WorkspaceConfig? _workspace;
 
   SalonService? get selectedService {
     if (services.isEmpty) {
@@ -36,13 +41,17 @@ class PublicBookingController extends GetxController {
     }
 
     final activeId = selectedServiceId.value;
+    if (activeId == null) {
+      return null;
+    }
+
     for (final service in services) {
       if (service.id == activeId) {
         return service;
       }
     }
 
-    return services.first;
+    return null;
   }
 
   List<TimeSlot> get slots {
@@ -58,7 +67,11 @@ class PublicBookingController extends GetxController {
   }
 
   List<DateTime?> get calendarCells {
-    final firstDay = DateTime(visibleMonth.value.year, visibleMonth.value.month, 1);
+    final firstDay = DateTime(
+      visibleMonth.value.year,
+      visibleMonth.value.month,
+      1,
+    );
     final daysInMonth =
         DateTime(visibleMonth.value.year, visibleMonth.value.month + 1, 0).day;
     final leading = firstDay.weekday - 1;
@@ -69,7 +82,9 @@ class PublicBookingController extends GetxController {
     }
 
     for (var day = 1; day <= daysInMonth; day++) {
-      cells.add(DateTime(visibleMonth.value.year, visibleMonth.value.month, day));
+      cells.add(
+        DateTime(visibleMonth.value.year, visibleMonth.value.month, day),
+      );
     }
 
     while (cells.length % 7 != 0) {
@@ -88,6 +103,12 @@ class PublicBookingController extends GetxController {
 
   bool get isOtherServiceSelected => selectedServiceId.value == 'altro';
 
+  bool get hasSelectedService => selectedService != null;
+
+  bool get hasCustomSlots => customSlots.isNotEmpty;
+
+  bool get canCreateCustomSlot => customSlots.length < 10;
+
   String get selectedServiceDisplayName {
     final service = selectedService;
     if (service == null) {
@@ -105,12 +126,23 @@ class PublicBookingController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _servicesSubscription = FirebaseFirestore.instance
+    _workspace = AppConfig.workspaceForEmail(
+      FirebaseAuth.instance.currentUser?.email,
+    );
+    final workspaceId = _workspace?.id;
+    if (workspaceId == null) {
+      return;
+    }
+
+    final workspaceRef = FirebaseFirestore.instance
+        .collection('workspaces')
+        .doc(workspaceId);
+    _servicesSubscription = workspaceRef
         .collection('services')
         .where('active', isEqualTo: true)
         .snapshots()
         .listen(_handleServices);
-    _availabilitySubscription = FirebaseFirestore.instance
+    _availabilitySubscription = workspaceRef
         .collection('availability')
         .doc('default_week')
         .snapshots()
@@ -138,10 +170,8 @@ class PublicBookingController extends GetxController {
 
     services.assignAll(incoming);
 
-    if (selectedServiceId.value == null && services.isNotEmpty) {
-      selectedServiceId.value = services.first.id;
-    } else if (selectedService == null && services.isNotEmpty) {
-      selectedServiceId.value = services.first.id;
+    if (selectedServiceId.value != null && selectedService == null) {
+      selectedServiceId.value = null;
     }
 
     _normalizeSelection();
@@ -151,6 +181,13 @@ class PublicBookingController extends GetxController {
     final availableSlots = slots;
     final currentSlot = selectedSlot.value;
     if (currentSlot == null) {
+      return;
+    }
+
+    final isCustomSlot = customSlots.any(
+      (slot) => slot.start == currentSlot.start && slot.end == currentSlot.end,
+    );
+    if (isCustomSlot) {
       return;
     }
 
@@ -176,6 +213,7 @@ class PublicBookingController extends GetxController {
         1,
       );
       selectedSlot.value = null;
+      _clearCustomSlots();
     }
   }
 
@@ -183,12 +221,14 @@ class PublicBookingController extends GetxController {
     selectedDate.value = date;
     visibleMonth.value = DateTime(date.year, date.month);
     selectedSlot.value = null;
+    _clearCustomSlots();
     feedbackMessage.value = null;
   }
 
   void selectService(String serviceId) {
     selectedServiceId.value = serviceId;
     selectedSlot.value = null;
+    _clearCustomSlots();
     feedbackMessage.value = null;
     if (serviceId != 'altro') {
       customServiceController.clear();
@@ -199,6 +239,81 @@ class PublicBookingController extends GetxController {
   void selectSlot(TimeSlot slot) {
     selectedSlot.value = slot;
     feedbackMessage.value = null;
+  }
+
+  void selectCustomTimeRange({
+    required TimeOfDay startTime,
+    required TimeOfDay endTime,
+    int? index,
+  }) {
+    final start = DateTime(
+      selectedDate.value.year,
+      selectedDate.value.month,
+      selectedDate.value.day,
+      startTime.hour,
+      startTime.minute,
+    );
+    final end = DateTime(
+      selectedDate.value.year,
+      selectedDate.value.month,
+      selectedDate.value.day,
+      endTime.hour,
+      endTime.minute,
+    );
+
+    if (!end.isAfter(start)) {
+      return;
+    }
+
+    final slot = TimeSlot(
+      start: start,
+      end: end,
+    );
+
+    if (index != null && index >= 0 && index < customSlots.length) {
+      customSlots[index] = slot;
+    } else if (canCreateCustomSlot) {
+      customSlots.add(slot);
+    } else {
+      return;
+    }
+
+    selectedSlot.value = slot;
+    isEditingCustomSlots.value = false;
+    feedbackMessage.value = null;
+  }
+
+  void toggleCustomSlotsEditing() {
+    if (customSlots.isEmpty) {
+      isEditingCustomSlots.value = false;
+      return;
+    }
+
+    isEditingCustomSlots.value = !isEditingCustomSlots.value;
+  }
+
+  void deleteCustomSlotAt(int index) {
+    if (index < 0 || index >= customSlots.length) {
+      return;
+    }
+
+    final removedSlot = customSlots[index];
+    customSlots.removeAt(index);
+    final selected = selectedSlot.value;
+    if (selected?.start == removedSlot.start &&
+        selected?.end == removedSlot.end) {
+      selectedSlot.value = null;
+    }
+
+    if (customSlots.isEmpty) {
+      isEditingCustomSlots.value = false;
+    }
+    feedbackMessage.value = null;
+  }
+
+  void _clearCustomSlots() {
+    customSlots.clear();
+    isEditingCustomSlots.value = false;
   }
 
   void updateCustomerName(String value) {
@@ -224,7 +339,18 @@ class PublicBookingController extends GetxController {
         '${dateKey(slot.start)}_${twoDigits(slot.start.hour)}${twoDigits(slot.start.minute)}';
 
     try {
-      await FirebaseFirestore.instance.collection('appointments').doc(docId).set(
+      final workspaceId = _workspace?.id;
+      if (workspaceId == null) {
+        feedbackMessage.value = 'Workspace non configurato per questo account.';
+        return;
+      }
+
+      await FirebaseFirestore.instance
+          .collection('workspaces')
+          .doc(workspaceId)
+          .collection('appointments')
+          .doc(docId)
+          .set(
         {
           'customerName': nameController.text.trim(),
           'serviceId': service.id,
@@ -245,6 +371,7 @@ class PublicBookingController extends GetxController {
       feedbackMessage.value =
           'Richiesta inviata per $selectedServiceDisplayName il ${formatDate(selectedDate.value)} alle ${formatTime(slot.start)}.';
       selectedSlot.value = null;
+      _clearCustomSlots();
       nameController.clear();
       notesController.clear();
       customServiceController.clear();

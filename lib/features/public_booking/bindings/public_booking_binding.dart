@@ -5,6 +5,6 @@ import '../controllers/public_booking_controller.dart';
 class PublicBookingBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut(PublicBookingController.new);
+    Get.lazyPut(PublicBookingController.new, fenix: true);
   }
 }
