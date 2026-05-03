@@ -156,8 +156,9 @@ class BookingCalendarSection extends GetView<PublicBookingController> {
                       return _CustomSlotPill(
                         label: formatTimeRange(slot.start, slot.end),
                         selected: _isSelectedSlot(slot),
-                        showDelete: controller.isEditingCustomSlots.value,
-                        onTap: () => _showCustomTimeDialog(
+                        showActions: controller.isEditingCustomSlots.value,
+                        onTap: () => controller.selectSlot(slot),
+                        onEdit: () => _showCustomTimeDialog(
                           context,
                           isEditing: true,
                           customSlotIndex: index,
@@ -375,15 +376,17 @@ class _CustomSlotPill extends StatelessWidget {
   const _CustomSlotPill({
     required this.label,
     required this.selected,
-    required this.showDelete,
+    required this.showActions,
     required this.onTap,
+    required this.onEdit,
     required this.onDelete,
   });
 
   final String label;
   final bool selected;
-  final bool showDelete;
+  final bool showActions;
   final VoidCallback onTap;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -391,37 +394,54 @@ class _CustomSlotPill extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Padding(
-          padding: EdgeInsets.only(top: 0, right: 0),
-          child: BookingChoicePill(
-            label: label,
-            selected: selected,
-            onTap: onTap,
+        BookingChoicePill(label: label, selected: selected, onTap: onTap),
+        if (showActions)
+          Positioned(
+            top: -5,
+            left: -5,
+            child: _CustomSlotActionBadge(
+              icon: Icons.edit_rounded,
+              onTap: onEdit,
+            ),
           ),
-        ),
-        if (showDelete)
+        if (showActions)
           Positioned(
             top: -5,
             right: -5,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: onDelete,
-                child: Ink(
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: bookingDeepBlue,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: const Icon(Icons.close, size: 13, color: Colors.white),
-                ),
-              ),
+            child: _CustomSlotActionBadge(
+              icon: Icons.close_rounded,
+              onTap: onDelete,
             ),
           ),
       ],
+    );
+  }
+}
+
+class _CustomSlotActionBadge extends StatelessWidget {
+  const _CustomSlotActionBadge({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Ink(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: bookingDeepBlue,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+          ),
+          child: Icon(icon, size: 13, color: Colors.white),
+        ),
+      ),
     );
   }
 }
