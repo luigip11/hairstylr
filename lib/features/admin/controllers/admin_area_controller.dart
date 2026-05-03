@@ -11,6 +11,8 @@ import '../../../core/services/bootstrap_service.dart';
 
 enum AdminUtilizationRange { daily, weekly, monthly }
 
+enum AdminDashboardSection { dashboard, user, appointments, customers }
+
 extension AdminUtilizationRangeX on AdminUtilizationRange {
   String get label => switch (this) {
     AdminUtilizationRange.daily => 'Giornaliero',
@@ -58,7 +60,9 @@ class AdminAreaController extends GetxController {
   final appointments = <Map<String, dynamic>>[].obs;
   final busyAppointmentIds = <String>{}.obs;
   final availability = Rxn<AvailabilitySchedule>();
+  final selectedSection = AdminDashboardSection.dashboard.obs;
   final selectedUtilizationRange = AdminUtilizationRange.weekly.obs;
+  final selectedAppointmentsRange = AdminUtilizationRange.daily.obs;
   final currentWorkspace = Rxn<WorkspaceConfig>();
 
   StreamSubscription<User?>? _authSubscription;
@@ -90,6 +94,9 @@ class AdminAreaController extends GetxController {
   double get activeBookedRatio =>
       bookedRatioFor(selectedUtilizationRange.value);
 
+  List<Map<String, dynamic>> get filteredAppointments =>
+      appointmentsForRange(selectedAppointmentsRange.value);
+
   int slotCapacityFor(AdminUtilizationRange range) {
     final schedule = availability.value;
     if (schedule == null) {
@@ -116,12 +123,7 @@ class AdminAreaController extends GetxController {
     final rangeEnd = _rangeEnd(range);
 
     return appointments.where((appointment) {
-      final timestamp = appointment['scheduledFor'];
-      final scheduledFor = switch (timestamp) {
-        Timestamp value => value.toDate(),
-        DateTime value => value,
-        _ => null,
-      };
+      final scheduledFor = _appointmentDate(appointment);
 
       return scheduledFor != null &&
           !scheduledFor.isBefore(rangeStart) &&
@@ -145,6 +147,26 @@ class AdminAreaController extends GetxController {
 
   void selectUtilizationRange(AdminUtilizationRange range) {
     selectedUtilizationRange.value = range;
+  }
+
+  void selectAppointmentsRange(AdminUtilizationRange range) {
+    selectedAppointmentsRange.value = range;
+  }
+
+  void selectSection(AdminDashboardSection section) {
+    selectedSection.value = section;
+  }
+
+  List<Map<String, dynamic>> appointmentsForRange(AdminUtilizationRange range) {
+    final rangeStart = _rangeStart(range);
+    final rangeEnd = _rangeEnd(range);
+
+    return appointments.where((appointment) {
+      final scheduledFor = _appointmentDate(appointment);
+      return scheduledFor != null &&
+          !scheduledFor.isBefore(rangeStart) &&
+          scheduledFor.isBefore(rangeEnd);
+    }).toList(growable: false);
   }
 
   @override
@@ -398,6 +420,15 @@ class AdminAreaController extends GetxController {
     }
 
     return total;
+  }
+
+  DateTime? _appointmentDate(Map<String, dynamic> appointment) {
+    final timestamp = appointment['scheduledFor'];
+    return switch (timestamp) {
+      Timestamp value => value.toDate(),
+      DateTime value => value,
+      _ => null,
+    };
   }
 
   @override

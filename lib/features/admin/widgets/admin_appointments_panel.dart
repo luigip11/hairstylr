@@ -6,7 +6,16 @@ import 'admin_appointment_row.dart';
 import 'admin_panel_shell.dart';
 
 class AdminAppointmentsPanel extends StatefulWidget {
-  const AdminAppointmentsPanel({super.key});
+  const AdminAppointmentsPanel({
+    super.key,
+    this.appointments,
+    this.headerAction,
+    this.emptyMessage,
+  });
+
+  final List<Map<String, dynamic>>? appointments;
+  final Widget? headerAction;
+  final String? emptyMessage;
 
   @override
   State<AdminAppointmentsPanel> createState() => _AdminAppointmentsPanelState();
@@ -30,6 +39,18 @@ class _AdminAppointmentsPanelState extends State<AdminAppointmentsPanel> {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<AdminAreaController>();
+    if (widget.appointments != null) {
+      return _buildPanel(context, controller, widget.appointments!);
+    }
+
+    return Obx(() => _buildPanel(context, controller, controller.appointments));
+  }
+
+  Widget _buildPanel(
+    BuildContext context,
+    AdminAreaController controller,
+    List<Map<String, dynamic>> appointments,
+  ) {
     final mediaQuery = MediaQuery.of(context);
     final isLandscape = mediaQuery.orientation == Orientation.landscape;
     final panelHeight = isLandscape
@@ -37,37 +58,34 @@ class _AdminAppointmentsPanelState extends State<AdminAppointmentsPanel> {
         : mediaQuery.size.height * 0.5;
     final clampedPanelHeight = panelHeight.clamp(280.0, 520.0).toDouble();
 
-    return Obx(
-      () => AdminPanelShell(
-        title: 'Appuntamenti',
-        subtitle:
-            'Visualizza, modifica e cancella le richieste di prenotazione.',
-        child: controller.appointments.isEmpty
-            ? const Padding(
-                padding: EdgeInsets.only(bottom: 20),
-                child: Text(
-                  'Nessuna prenotazione ancora presente. Prova una prenotazione dalla home page.',
-                ),
-              )
-            : SizedBox(
-                height: clampedPanelHeight,
-                child: Scrollbar(
+    return AdminPanelShell(
+      title: 'Appuntamenti',
+      subtitle: 'Visualizza, modifica e cancella le richieste di prenotazione.',
+      headerAction: widget.headerAction,
+      child: appointments.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: Text(
+                widget.emptyMessage ??
+                    'Nessuna prenotazione ancora presente. Prova una prenotazione dalla home page.',
+              ),
+            )
+          : SizedBox(
+              height: clampedPanelHeight,
+              child: Scrollbar(
+                controller: _scrollController,
+                thumbVisibility: true,
+                trackVisibility: true,
+                child: ListView.builder(
                   controller: _scrollController,
-                  thumbVisibility: true,
-                  trackVisibility: true,
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.only(right: 8, bottom: 24),
-                    itemCount: controller.appointments.length,
-                    itemBuilder: (context, index) {
-                      return AdminAppointmentRow(
-                        data: controller.appointments[index],
-                      );
-                    },
-                  ),
+                  padding: const EdgeInsets.only(bottom: 24),
+                  itemCount: appointments.length,
+                  itemBuilder: (context, index) {
+                    return AdminAppointmentRow(data: appointments[index]);
+                  },
                 ),
               ),
-      ),
+            ),
     );
   }
 }
