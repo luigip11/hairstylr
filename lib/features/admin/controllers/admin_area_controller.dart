@@ -61,6 +61,7 @@ class AdminAreaController extends GetxController {
   final busyAppointmentIds = <String>{}.obs;
   final availability = Rxn<AvailabilitySchedule>();
   final selectedSection = AdminDashboardSection.dashboard.obs;
+  final isSidebarCollapsed = false.obs;
   final selectedUtilizationRange = AdminUtilizationRange.weekly.obs;
   final selectedAppointmentsRange = AdminUtilizationRange.daily.obs;
   final currentWorkspace = Rxn<WorkspaceConfig>();
@@ -155,6 +156,10 @@ class AdminAreaController extends GetxController {
 
   void selectSection(AdminDashboardSection section) {
     selectedSection.value = section;
+  }
+
+  void toggleSidebarCollapsed() {
+    isSidebarCollapsed.value = !isSidebarCollapsed.value;
   }
 
   List<Map<String, dynamic>> appointmentsForRange(AdminUtilizationRange range) {

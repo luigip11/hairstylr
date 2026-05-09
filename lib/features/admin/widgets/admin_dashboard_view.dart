@@ -20,23 +20,31 @@ class AdminDashboardView extends GetView<AdminAreaController> {
     return Scaffold(
       backgroundColor: AppColors.appCream,
       body: SafeArea(
-        child: Row(
-          children: [
-            const _AdminSidebar(),
-            Expanded(
-              child: Obx(
-                () => AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  child: _AdminSectionBody(
-                    key: ValueKey(controller.selectedSection.value),
-                    section: controller.selectedSection.value,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final forceCollapsed = constraints.maxWidth < 700;
+            return Obx(() {
+              final isCollapsed =
+                  forceCollapsed || controller.isSidebarCollapsed.value;
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _AdminSidebar(isCollapsed: isCollapsed),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      child: _AdminSectionBody(
+                        key: ValueKey(controller.selectedSection.value),
+                        section: controller.selectedSection.value,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
-          ],
+                ],
+              );
+            });
+          },
         ),
       ),
     );
@@ -44,14 +52,16 @@ class AdminDashboardView extends GetView<AdminAreaController> {
 }
 
 class _AdminSidebar extends GetView<AdminAreaController> {
-  const _AdminSidebar();
+  const _AdminSidebar({required this.isCollapsed});
+
+  final bool isCollapsed;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 270,
+      width: isCollapsed ? 86 : 270,
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+      padding: EdgeInsets.fromLTRB(16, 18, 16, isCollapsed ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(30),
@@ -66,25 +76,35 @@ class _AdminSidebar extends GetView<AdminAreaController> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              IconButton.filledTonal(
-                onPressed: () => Get.offNamed(AppRoutes.home),
-                icon: const Icon(Icons.arrow_back_rounded),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Area admin',
-                  style: TextStyle(
-                    fontFamily: 'StoryScript',
-                    fontSize: 30,
-                    color: AppColors.bookingDeepBlue,
+          if (isCollapsed)
+            IconButton(
+              tooltip: 'Apri menu',
+              onPressed: controller.toggleSidebarCollapsed,
+              icon: const Icon(Icons.menu_rounded),
+            )
+          else
+            Row(
+              children: [
+                const Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 8.0),
+                    child: Text(
+                      'Area admin',
+                      style: TextStyle(
+                        fontFamily: 'StoryScript',
+                        fontSize: 30,
+                        color: AppColors.bookingDeepBlue,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+                IconButton(
+                  tooltip: 'Comprimi menu',
+                  onPressed: controller.toggleSidebarCollapsed,
+                  icon: const Icon(Icons.keyboard_double_arrow_left_rounded),
+                ),
+              ],
+            ),
           const SizedBox(height: 26),
           Obx(
             () => Column(
@@ -92,16 +112,17 @@ class _AdminSidebar extends GetView<AdminAreaController> {
                 _SidebarItem(
                   icon: Icons.dashboard_rounded,
                   label: 'Dashboard',
+                  collapsed: isCollapsed,
                   selected:
                       controller.selectedSection.value ==
                       AdminDashboardSection.dashboard,
-                  onTap: () => controller.selectSection(
-                    AdminDashboardSection.dashboard,
-                  ),
+                  onTap: () =>
+                      controller.selectSection(AdminDashboardSection.dashboard),
                 ),
                 _SidebarItem(
                   icon: Icons.person_rounded,
                   label: 'Utente',
+                  collapsed: isCollapsed,
                   selected:
                       controller.selectedSection.value ==
                       AdminDashboardSection.user,
@@ -111,6 +132,7 @@ class _AdminSidebar extends GetView<AdminAreaController> {
                 _SidebarItem(
                   icon: Icons.event_note_rounded,
                   label: 'Appuntamenti',
+                  collapsed: isCollapsed,
                   selected:
                       controller.selectedSection.value ==
                       AdminDashboardSection.appointments,
@@ -121,26 +143,28 @@ class _AdminSidebar extends GetView<AdminAreaController> {
                 _SidebarItem(
                   icon: Icons.groups_rounded,
                   label: 'Clienti',
+                  collapsed: isCollapsed,
                   selected:
                       controller.selectedSection.value ==
                       AdminDashboardSection.customers,
-                  onTap: () => controller.selectSection(
-                    AdminDashboardSection.customers,
-                  ),
+                  onTap: () =>
+                      controller.selectSection(AdminDashboardSection.customers),
                 ),
               ],
             ),
           ),
           const Spacer(),
           TextButton.icon(
-            onPressed: controller.signOut,
+            onPressed: () => Get.offNamed(AppRoutes.home),
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.dangerRed,
-              alignment: Alignment.centerLeft,
+              foregroundColor: AppColors.textSlate,
+              alignment: isCollapsed ? Alignment.center : Alignment.centerLeft,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             ),
-            icon: const Icon(Icons.logout_rounded),
-            label: const Text('Logout'),
+            icon: const Icon(Icons.arrow_back_rounded),
+            label: isCollapsed
+                ? const SizedBox.shrink()
+                : const Text('Torna indietro', style: TextStyle(fontSize: 16)),
           ),
         ],
       ),
@@ -152,12 +176,14 @@ class _SidebarItem extends StatelessWidget {
   const _SidebarItem({
     required this.icon,
     required this.label,
+    required this.collapsed,
     required this.selected,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
+  final bool collapsed;
   final bool selected;
   final VoidCallback onTap;
 
@@ -169,32 +195,41 @@ class _SidebarItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: EdgeInsets.symmetric(
+            horizontal: collapsed ? 0 : 14,
+            vertical: 14,
+          ),
           decoration: BoxDecoration(
             color: selected ? AppColors.softBlueTint : Colors.transparent,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: selected ? AppColors.borderBlue : Colors.transparent,
+              color: selected ? AppColors.bookingDeepBlue : Colors.transparent,
             ),
           ),
           child: Row(
+            mainAxisAlignment: collapsed
+                ? MainAxisAlignment.center
+                : MainAxisAlignment.start,
             children: [
               Icon(
                 icon,
                 color: selected
                     ? AppTheme.accentBlueDark
-                    : AppColors.textSlate,
+                    : AppColors.textGreyBlue,
               ),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected
-                      ? AppTheme.accentBlueDark
-                      : AppColors.textSlate,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+              if (!collapsed) ...[
+                const SizedBox(width: 12),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: selected
+                        ? AppTheme.accentBlueDark
+                        : AppColors.textGreyBlue,
+                    fontSize: selected ? 16 : 15,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -229,23 +264,37 @@ class _DashboardSection extends GetView<AdminAreaController> {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 20,
-      runSpacing: 20,
-      children: [
-        const SizedBox(width: 600, child: AdminUtilizationChartCard()),
-        Obx(
-          () => SizedBox(
-            width: 360,
-            height: 174,
-            child: AdminKpiPanel(
-              label: 'Appuntamenti in agenda',
-              value: '${controller.appointments.length}',
-              detail: 'Prenotazioni totali nel workspace',
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 980;
+        final agendaCard = Obx(
+          () => AdminKpiPanel(
+            label: 'Appuntamenti in agenda',
+            value: '${controller.appointments.length}',
+            detail: 'Prenotazioni totali nel workspace',
           ),
-        ),
-      ],
+        );
+
+        if (isNarrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AdminUtilizationChartCard(),
+              const SizedBox(height: 20),
+              agendaCard,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Expanded(flex: 2, child: AdminUtilizationChartCard()),
+            const SizedBox(width: 20),
+            Expanded(child: SizedBox(height: 174, child: agendaCard)),
+          ],
+        );
+      },
     );
   }
 }
@@ -255,23 +304,80 @@ class _UserSection extends GetView<AdminAreaController> {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 20,
-      runSpacing: 20,
-      children: [
-        Obx(
-          () => SizedBox(
-            width: 400,
-            height: 160,
-            child: AdminKpiPanel(
-              label: 'Workspace attivo',
-              value: controller.currentWorkspaceName,
-              detail: controller.currentUser.value?.email ?? 'admin',
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 980;
+        final workspaceCard = Obx(
+          () => AdminKpiPanel(
+            label: 'Workspace attivo',
+            value: controller.currentWorkspaceName,
+            detail: controller.currentUser.value?.email ?? 'admin',
           ),
+        );
+        const setupCard = AdminDashboardSetupSection();
+        final logoutCard = _LogoutCard(onLogout: controller.signOut);
+
+        if (isNarrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              workspaceCard,
+              const SizedBox(height: 20),
+              setupCard,
+              const SizedBox(height: 20),
+              logoutCard,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: SizedBox(height: 170, child: workspaceCard)),
+            const SizedBox(width: 20),
+            Expanded(child: setupCard),
+            const SizedBox(width: 20),
+            Expanded(child: SizedBox(height: 170, child: logoutCard)),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LogoutCard extends StatelessWidget {
+  const _LogoutCard({required this.onLogout});
+
+  final VoidCallback onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(28),
+      onTap: onLogout,
+      child: Ink(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: AppColors.dangerRed,
+          borderRadius: BorderRadius.circular(28),
         ),
-        const SizedBox(width: 420, child: AdminDashboardSetupSection()),
-      ],
+        child: const Row(
+          children: [
+            Icon(Icons.logout_rounded, color: Colors.white),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
