@@ -6,9 +6,9 @@ import '../../../app/app_routes.dart';
 import '../../../app/app_theme.dart';
 import '../controllers/admin_area_controller.dart';
 import 'admin_appointments_panel.dart';
+import 'admin_customers_panel.dart';
 import 'admin_dashboard_setup_section.dart';
 import 'admin_kpi_panel.dart';
-import 'admin_panel_shell.dart';
 import 'admin_utilization_chart_card.dart';
 
 class AdminDashboardView extends GetView<AdminAreaController> {
@@ -18,6 +18,7 @@ class AdminDashboardView extends GetView<AdminAreaController> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appCream,
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -105,54 +106,60 @@ class _AdminSidebar extends GetView<AdminAreaController> {
               ],
             ),
           const SizedBox(height: 26),
-          Obx(
-            () => Column(
-              children: [
-                _SidebarItem(
-                  icon: Icons.dashboard_rounded,
-                  label: 'Dashboard',
-                  collapsed: isCollapsed,
-                  selected:
-                      controller.selectedSection.value ==
-                      AdminDashboardSection.dashboard,
-                  onTap: () =>
-                      controller.selectSection(AdminDashboardSection.dashboard),
+          Expanded(
+            child: Obx(
+              () => SingleChildScrollView(
+                child: Column(
+                  children: [
+                    _SidebarItem(
+                      icon: Icons.dashboard_rounded,
+                      label: 'Dashboard',
+                      collapsed: isCollapsed,
+                      selected:
+                          controller.selectedSection.value ==
+                          AdminDashboardSection.dashboard,
+                      onTap: () => controller.selectSection(
+                        AdminDashboardSection.dashboard,
+                      ),
+                    ),
+                    _SidebarItem(
+                      icon: Icons.person_rounded,
+                      label: 'Utente',
+                      collapsed: isCollapsed,
+                      selected:
+                          controller.selectedSection.value ==
+                          AdminDashboardSection.user,
+                      onTap: () =>
+                          controller.selectSection(AdminDashboardSection.user),
+                    ),
+                    _SidebarItem(
+                      icon: Icons.event_note_rounded,
+                      label: 'Appuntamenti',
+                      collapsed: isCollapsed,
+                      selected:
+                          controller.selectedSection.value ==
+                          AdminDashboardSection.appointments,
+                      onTap: () => controller.selectSection(
+                        AdminDashboardSection.appointments,
+                      ),
+                    ),
+                    _SidebarItem(
+                      icon: Icons.groups_rounded,
+                      label: 'Clienti',
+                      collapsed: isCollapsed,
+                      selected:
+                          controller.selectedSection.value ==
+                          AdminDashboardSection.customers,
+                      onTap: () => controller.selectSection(
+                        AdminDashboardSection.customers,
+                      ),
+                    ),
+                  ],
                 ),
-                _SidebarItem(
-                  icon: Icons.person_rounded,
-                  label: 'Utente',
-                  collapsed: isCollapsed,
-                  selected:
-                      controller.selectedSection.value ==
-                      AdminDashboardSection.user,
-                  onTap: () =>
-                      controller.selectSection(AdminDashboardSection.user),
-                ),
-                _SidebarItem(
-                  icon: Icons.event_note_rounded,
-                  label: 'Appuntamenti',
-                  collapsed: isCollapsed,
-                  selected:
-                      controller.selectedSection.value ==
-                      AdminDashboardSection.appointments,
-                  onTap: () => controller.selectSection(
-                    AdminDashboardSection.appointments,
-                  ),
-                ),
-                _SidebarItem(
-                  icon: Icons.groups_rounded,
-                  label: 'Clienti',
-                  collapsed: isCollapsed,
-                  selected:
-                      controller.selectedSection.value ==
-                      AdminDashboardSection.customers,
-                  onTap: () =>
-                      controller.selectSection(AdminDashboardSection.customers),
-                ),
-              ],
+              ),
             ),
           ),
-          const Spacer(),
+          const SizedBox(height: 12),
           TextButton.icon(
             onPressed: () => Get.offNamed(AppRoutes.home),
             style: TextButton.styleFrom(
@@ -395,39 +402,6 @@ class _CustomersSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AdminPanelShell(
-      title: 'Clienti',
-      subtitle: 'Rubrica clienti e info relative ad essi.',
-      child: SizedBox(
-        height: 360,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 46,
-                color: AppColors.textChartMuted,
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Non ci sono clienti censiti',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textChartMuted,
-                ),
-              ),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Aggiungi cliente'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return const AdminCustomersPanel();
   }
 }

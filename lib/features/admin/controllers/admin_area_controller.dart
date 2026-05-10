@@ -51,6 +51,7 @@ class AdminAreaController extends GetxController {
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final customerSearchController = TextEditingController();
 
   final currentUser = Rxn<User>();
   final isSubmitting = false.obs;
@@ -58,7 +59,10 @@ class AdminAreaController extends GetxController {
   final errorMessage = RxnString();
   final infoMessage = RxnString();
   final appointments = <Map<String, dynamic>>[].obs;
+  final customers = <Map<String, dynamic>>[].obs;
   final busyAppointmentIds = <String>{}.obs;
+  final isCreatingCustomer = false.obs;
+  final customerSearchQuery = ''.obs;
   final availability = Rxn<AvailabilitySchedule>();
   final selectedSection = AdminDashboardSection.dashboard.obs;
   final isSidebarCollapsed = false.obs;
@@ -73,6 +77,8 @@ class AdminAreaController extends GetxController {
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _appointmentsSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _customersSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _availabilitySubscription;
 
@@ -101,6 +107,42 @@ class AdminAreaController extends GetxController {
 
   List<Map<String, dynamic>> get selectedDateAppointments =>
       appointmentsForDate(selectedAppointmentDate.value);
+
+  List<Map<String, dynamic>> get filteredCustomers {
+    final query = customerSearchQuery.value.trim().toLowerCase();
+    final filtered = customers.where((customer) {
+      if (query.isEmpty) {
+        return true;
+      }
+
+      final firstName = ((customer['firstName'] as String?) ?? '').toLowerCase();
+      final lastName = ((customer['lastName'] as String?) ?? '').toLowerCase();
+      final fullName = '$firstName $lastName';
+      final reverseFullName = '$lastName $firstName';
+      return firstName.contains(query) ||
+          lastName.contains(query) ||
+          fullName.contains(query) ||
+          reverseFullName.contains(query);
+    }).toList(growable: false);
+
+    return filtered
+      ..sort((left, right) {
+        final leftLastName = (left['lastName'] as String?) ?? '';
+        final rightLastName = (right['lastName'] as String?) ?? '';
+        final lastNameCompare = leftLastName.toLowerCase().compareTo(
+          rightLastName.toLowerCase(),
+        );
+        if (lastNameCompare != 0) {
+          return lastNameCompare;
+        }
+
+        final leftFirstName = (left['firstName'] as String?) ?? '';
+        final rightFirstName = (right['firstName'] as String?) ?? '';
+        return leftFirstName.toLowerCase().compareTo(
+          rightFirstName.toLowerCase(),
+        );
+      });
+  }
 
   List<DateTime?> get appointmentCalendarCells {
     final firstDay = DateTime(
@@ -232,6 +274,7 @@ class AdminAreaController extends GetxController {
       currentWorkspace.value = AppConfig.workspaceForEmail(user?.email);
       _bindAvailability();
       _bindAppointments();
+      _bindCustomers();
     });
   }
 
@@ -288,6 +331,35 @@ class AdminAreaController extends GetxController {
               .toList(growable: false);
           appointments.assignAll(docs);
         });
+  }
+
+  void _bindCustomers() {
+    _customersSubscription?.cancel();
+    customers.clear();
+
+    if (!isAuthorizedAdmin) {
+      return;
+    }
+
+    final workspaceRef = _workspaceRef;
+    if (workspaceRef == null) {
+      return;
+    }
+
+    _customersSubscription = workspaceRef
+        .collection('customers')
+        .orderBy('lastName')
+        .snapshots()
+        .listen((snapshot) {
+          final docs = snapshot.docs
+              .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
+              .toList(growable: false);
+          customers.assignAll(docs);
+        });
+  }
+
+  void updateCustomerSearch(String value) {
+    customerSearchQuery.value = value;
   }
 
   bool isAppointmentBusy(String appointmentId) {
@@ -412,6 +484,90 @@ class AdminAreaController extends GetxController {
     );
   }
 
+  Future<bool> createCustomer({
+    required String firstName,
+    required String lastName,
+    required String phoneNumber,
+    required String notes,
+  }) async {
+    if (isCreatingCustomer.value) {
+      return false;
+    }
+
+    isCreatingCustomer.value = true;
+    infoMessage.value = null;
+
+    try {
+      final workspaceRef = _workspaceRef;
+      if (workspaceRef == null) {
+        throw StateError('Workspace non configurato.');
+      }
+
+      await workspaceRef.collection('customers').add({
+        'firstName': firstName.trim(),
+        'lastName': lastName.trim(),
+        'phoneNumber': phoneNumber.trim(),
+        'notes': notes.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      infoMessage.value = 'Cliente censito.';
+      return true;
+    } on FirebaseException catch (error) {
+      infoMessage.value =
+          'Creazione cliente non riuscita: ${error.message ?? error.code}';
+    } catch (error) {
+      infoMessage.value = 'Creazione cliente non riuscita: $error';
+    } finally {
+      isCreatingCustomer.value = false;
+    }
+
+    return false;
+  }
+
+  Future<bool> updateCustomer({
+    required String customerId,
+    required String firstName,
+    required String lastName,
+    required String phoneNumber,
+    required String notes,
+  }) async {
+    if (isCreatingCustomer.value) {
+      return false;
+    }
+
+    isCreatingCustomer.value = true;
+    infoMessage.value = null;
+
+    try {
+      final workspaceRef = _workspaceRef;
+      if (workspaceRef == null) {
+        throw StateError('Workspace non configurato.');
+      }
+
+      await workspaceRef.collection('customers').doc(customerId).update({
+        'firstName': firstName.trim(),
+        'lastName': lastName.trim(),
+        'phoneNumber': phoneNumber.trim(),
+        'notes': notes.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      infoMessage.value = 'Cliente aggiornato.';
+      return true;
+    } on FirebaseException catch (error) {
+      infoMessage.value =
+          'Aggiornamento cliente non riuscito: ${error.message ?? error.code}';
+    } catch (error) {
+      infoMessage.value = 'Aggiornamento cliente non riuscito: $error';
+    } finally {
+      isCreatingCustomer.value = false;
+    }
+
+    return false;
+  }
+
   Future<bool> _runAppointmentAction(
     String appointmentId,
     Future<void> Function() action, {
@@ -490,9 +646,11 @@ class AdminAreaController extends GetxController {
   void onClose() {
     _authSubscription?.cancel();
     _appointmentsSubscription?.cancel();
+    _customersSubscription?.cancel();
     _availabilitySubscription?.cancel();
     emailController.dispose();
     passwordController.dispose();
+    customerSearchController.dispose();
     super.onClose();
   }
 }
