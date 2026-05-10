@@ -311,6 +311,13 @@ class PublicBookingController extends GetxController {
     feedbackMessage.value = null;
   }
 
+  void resetConfirmationSection() {
+    selectedSlot.value = null;
+    _clearCustomSlots();
+    feedbackMessage.value = null;
+    notesController.clear();
+  }
+
   void _clearCustomSlots() {
     customSlots.clear();
     isEditingCustomSlots.value = false;

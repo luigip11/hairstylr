@@ -12,9 +12,11 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
   const AdminAppointmentRow({
     super.key,
     required this.data,
+    this.compact = false,
   });
 
   final Map<String, dynamic> data;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +29,18 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
         'Servizio';
     final notes = (data['notes'] as String?) ?? '';
     final status = (data['status'] as String?) ?? 'requested';
+
+    if (compact) {
+      return _buildCompact(
+        context: context,
+        appointmentId: appointmentId,
+        scheduledFor: scheduledFor,
+        customerName: customerName,
+        serviceName: serviceName,
+        notes: notes,
+        status: status,
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -159,6 +173,146 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
     );
   }
 
+  Widget _buildCompact({
+    required BuildContext context,
+    required String appointmentId,
+    required DateTime? scheduledFor,
+    required String customerName,
+    required String serviceName,
+    required String notes,
+    required String status,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 70,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.softBlueTint,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Center(
+              child: Text(
+                scheduledFor == null ? '--:--' : formatTime(scheduledFor),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.bookingDeepBlue,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  customerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      serviceName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    _StatusChip(status: status, compact: true),
+                  ],
+                ),
+                if (notes.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    notes,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textMutedGreenAlt,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Obx(() {
+            final isBusy = controller.isAppointmentBusy(appointmentId);
+            final isConfirmed = status == 'confirmed' || status == 'completed';
+
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _CompactActionButton(
+                  tooltip: 'Modifica appuntamento',
+                  icon: Icons.edit_outlined,
+                  onPressed: isBusy
+                      ? null
+                      : () {
+                          showDialog<void>(
+                            context: context,
+                            builder: (_) => AdminAppointmentEditDialog(
+                              data: data,
+                            ),
+                          );
+                        },
+                ),
+                const SizedBox(width: 6),
+                _CompactActionButton(
+                  tooltip: isConfirmed
+                      ? 'Appuntamento gia confermato'
+                      : 'Conferma appuntamento',
+                  icon: isBusy
+                      ? Icons.hourglass_top_rounded
+                      : Icons.check_rounded,
+                  backgroundColor: isConfirmed
+                      ? AppColors.successSurface
+                      : AppColors.confirmedBlueSurface,
+                  foregroundColor: isConfirmed
+                      ? AppColors.successGreen
+                      : AppTheme.accentBlueDark,
+                  onPressed: isBusy || isConfirmed
+                      ? null
+                      : () => controller.confirmAppointment(appointmentId),
+                ),
+                const SizedBox(width: 6),
+                _CompactActionButton(
+                  tooltip: 'Elimina appuntamento',
+                  icon: Icons.delete_outline_rounded,
+                  backgroundColor: AppColors.dangerSurface,
+                  foregroundColor: AppColors.dangerRed,
+                  onPressed: isBusy
+                      ? null
+                      : () => _confirmDelete(context, appointmentId),
+                ),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   Future<void> _confirmDelete(BuildContext context, String appointmentId) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
@@ -189,9 +343,10 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
 }
 
 class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
+  const _StatusChip({required this.status, this.compact = false});
 
   final String status;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -207,7 +362,10 @@ class _StatusChip extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 10,
+        vertical: compact ? 4 : 6,
+      ),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
@@ -216,6 +374,7 @@ class _StatusChip extends StatelessWidget {
         _statusLabel(status),
         style: TextStyle(
           color: foregroundColor,
+          fontSize: compact ? 11 : null,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -227,4 +386,36 @@ class _StatusChip extends StatelessWidget {
     'completed' => 'Completato',
     _ => 'Richiesto',
   };
+}
+
+class _CompactActionButton extends StatelessWidget {
+  const _CompactActionButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+    this.backgroundColor,
+    this.foregroundColor,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton.filledTonal(
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+      padding: EdgeInsets.zero,
+      style: IconButton.styleFrom(
+        backgroundColor: backgroundColor,
+        foregroundColor: foregroundColor,
+      ),
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+    );
+  }
 }

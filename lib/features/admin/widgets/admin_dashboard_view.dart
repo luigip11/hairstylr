@@ -9,7 +9,6 @@ import 'admin_appointments_panel.dart';
 import 'admin_dashboard_setup_section.dart';
 import 'admin_kpi_panel.dart';
 import 'admin_panel_shell.dart';
-import 'admin_popup_selector.dart';
 import 'admin_utilization_chart_card.dart';
 
 class AdminDashboardView extends GetView<AdminAreaController> {
@@ -387,27 +386,7 @@ class _AppointmentsSection extends GetView<AdminAreaController> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final range = controller.selectedAppointmentsRange.value;
-      return AdminAppointmentsPanel(
-        appointments: controller.filteredAppointments,
-        emptyMessage:
-            'Nessun appuntamento trovato per il filtro ${range.label.toLowerCase()}.',
-        headerAction: AdminPopupSelector<AdminUtilizationRange>(
-          width: 182,
-          value: range,
-          items: controller.utilizationRanges
-              .map(
-                (item) => AdminPopupSelectorItem<AdminUtilizationRange>(
-                  value: item,
-                  label: item.label,
-                ),
-              )
-              .toList(growable: false),
-          onChanged: controller.selectAppointmentsRange,
-        ),
-      );
-    });
+    return const AdminAppointmentsPanel();
   }
 }
 
@@ -418,7 +397,7 @@ class _CustomersSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return AdminPanelShell(
       title: 'Clienti',
-      subtitle: 'Rubrica clienti e storico appuntamenti.',
+      subtitle: 'Rubrica clienti e info relative ad essi.',
       child: SizedBox(
         height: 360,
         child: Center(
@@ -432,11 +411,11 @@ class _CustomersSection extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               const Text(
-                'Non ci sono clienti censiti.',
+                'Non ci sono clienti censiti',
                 style: TextStyle(
                   fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.bookingDeepBlue,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textChartMuted,
                 ),
               ),
               const SizedBox(height: 18),

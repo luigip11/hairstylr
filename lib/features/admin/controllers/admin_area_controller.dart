@@ -63,7 +63,11 @@ class AdminAreaController extends GetxController {
   final selectedSection = AdminDashboardSection.dashboard.obs;
   final isSidebarCollapsed = false.obs;
   final selectedUtilizationRange = AdminUtilizationRange.weekly.obs;
-  final selectedAppointmentsRange = AdminUtilizationRange.daily.obs;
+  final selectedAppointmentDate = dateOnly(DateTime.now()).obs;
+  final visibleAppointmentsMonth = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+  ).obs;
   final currentWorkspace = Rxn<WorkspaceConfig>();
 
   StreamSubscription<User?>? _authSubscription;
@@ -95,8 +99,44 @@ class AdminAreaController extends GetxController {
   double get activeBookedRatio =>
       bookedRatioFor(selectedUtilizationRange.value);
 
-  List<Map<String, dynamic>> get filteredAppointments =>
-      appointmentsForRange(selectedAppointmentsRange.value);
+  List<Map<String, dynamic>> get selectedDateAppointments =>
+      appointmentsForDate(selectedAppointmentDate.value);
+
+  List<DateTime?> get appointmentCalendarCells {
+    final firstDay = DateTime(
+      visibleAppointmentsMonth.value.year,
+      visibleAppointmentsMonth.value.month,
+      1,
+    );
+    final daysInMonth =
+        DateTime(
+          visibleAppointmentsMonth.value.year,
+          visibleAppointmentsMonth.value.month + 1,
+          0,
+        ).day;
+    final leading = firstDay.weekday - 1;
+    final cells = <DateTime?>[];
+
+    for (var i = 0; i < leading; i++) {
+      cells.add(null);
+    }
+
+    for (var day = 1; day <= daysInMonth; day++) {
+      cells.add(
+        DateTime(
+          visibleAppointmentsMonth.value.year,
+          visibleAppointmentsMonth.value.month,
+          day,
+        ),
+      );
+    }
+
+    while (cells.length % 7 != 0) {
+      cells.add(null);
+    }
+
+    return cells;
+  }
 
   int slotCapacityFor(AdminUtilizationRange range) {
     final schedule = availability.value;
@@ -150,10 +190,6 @@ class AdminAreaController extends GetxController {
     selectedUtilizationRange.value = range;
   }
 
-  void selectAppointmentsRange(AdminUtilizationRange range) {
-    selectedAppointmentsRange.value = range;
-  }
-
   void selectSection(AdminDashboardSection section) {
     selectedSection.value = section;
   }
@@ -162,15 +198,29 @@ class AdminAreaController extends GetxController {
     isSidebarCollapsed.value = !isSidebarCollapsed.value;
   }
 
-  List<Map<String, dynamic>> appointmentsForRange(AdminUtilizationRange range) {
-    final rangeStart = _rangeStart(range);
-    final rangeEnd = _rangeEnd(range);
+  void changeAppointmentsMonth(int delta) {
+    visibleAppointmentsMonth.value = DateTime(
+      visibleAppointmentsMonth.value.year,
+      visibleAppointmentsMonth.value.month + delta,
+    );
+  }
 
+  void selectAppointmentDate(DateTime date) {
+    selectedAppointmentDate.value = dateOnly(date);
+    visibleAppointmentsMonth.value = DateTime(date.year, date.month);
+  }
+
+  bool hasAppointmentsOn(DateTime date) {
+    return appointments.any((appointment) {
+      final scheduledFor = _appointmentDate(appointment);
+      return scheduledFor != null && isSameDate(scheduledFor, date);
+    });
+  }
+
+  List<Map<String, dynamic>> appointmentsForDate(DateTime date) {
     return appointments.where((appointment) {
       final scheduledFor = _appointmentDate(appointment);
-      return scheduledFor != null &&
-          !scheduledFor.isBefore(rangeStart) &&
-          scheduledFor.isBefore(rangeEnd);
+      return scheduledFor != null && isSameDate(scheduledFor, date);
     }).toList(growable: false);
   }
 

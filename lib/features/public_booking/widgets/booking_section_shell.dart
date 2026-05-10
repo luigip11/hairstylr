@@ -15,6 +15,7 @@ class BookingSectionShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      clipBehavior: Clip.antiAlias,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.9),

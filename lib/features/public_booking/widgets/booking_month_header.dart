@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hairstylr/app/app_colors.dart';
 
 import '../../../core/models/booking_support.dart';
 
@@ -18,21 +19,18 @@ class BookingMonthHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        IconButton(
-          onPressed: onPrevious,
-          icon: const Icon(Icons.chevron_left),
-        ),
+        IconButton(onPressed: onPrevious, icon: const Icon(Icons.chevron_left)),
         Expanded(
           child: Text(
             '${monthLong(visibleMonth)} ${visibleMonth.year}',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: AppColors.bookingDeepBlue,
+            ),
           ),
         ),
-        IconButton(
-          onPressed: onNext,
-          icon: const Icon(Icons.chevron_right),
-        ),
+        IconButton(onPressed: onNext, icon: const Icon(Icons.chevron_right)),
       ],
     );
   }

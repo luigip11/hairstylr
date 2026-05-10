@@ -17,6 +17,7 @@ class AdminPanelShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      clipBehavior: Clip.antiAlias,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.9),
@@ -29,7 +30,10 @@ class AdminPanelShell extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
               ),
               if (headerAction != null) ...[
                 const SizedBox(width: 12),

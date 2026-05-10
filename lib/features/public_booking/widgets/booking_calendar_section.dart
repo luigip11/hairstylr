@@ -177,7 +177,13 @@ class BookingCalendarSection extends GetView<PublicBookingController> {
                               width: 1.5,
                             ),
                           ),
+                          shape: WidgetStateProperty.all(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
                         ),
+
                         child: const Text(
                           'Imposta un orario',
                           style: TextStyle(color: bookingDeepBlue),
