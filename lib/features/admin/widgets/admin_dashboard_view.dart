@@ -258,6 +258,17 @@ class _AdminSectionBody extends StatelessWidget {
       AdminDashboardSection.customers => const _CustomersSection(),
     };
 
+    if (section == AdminDashboardSection.customers) {
+      return GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(4, 20, 20, 28),
+          child: SizedBox.expand(child: child),
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(4, 20, 20, 28),
       child: child,

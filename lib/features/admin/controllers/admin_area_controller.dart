@@ -191,7 +191,7 @@ class AdminAreaController extends GetxController {
         schedule.windowsForDate(DateTime.now()).length,
       AdminUtilizationRange.weekly => schedule.weeklySchedule.values.fold<int>(
         0,
-        (sum, slots) => sum + slots.length,
+        (total, slots) => total + slots.length,
       ),
       AdminUtilizationRange.monthly => _countSlotsInRange(
         schedule,
@@ -360,6 +360,11 @@ class AdminAreaController extends GetxController {
 
   void updateCustomerSearch(String value) {
     customerSearchQuery.value = value;
+  }
+
+  void clearCustomerSearch() {
+    customerSearchController.clear();
+    customerSearchQuery.value = '';
   }
 
   bool isAppointmentBusy(String appointmentId) {
@@ -561,6 +566,36 @@ class AdminAreaController extends GetxController {
           'Aggiornamento cliente non riuscito: ${error.message ?? error.code}';
     } catch (error) {
       infoMessage.value = 'Aggiornamento cliente non riuscito: $error';
+    } finally {
+      isCreatingCustomer.value = false;
+    }
+
+    return false;
+  }
+
+  Future<bool> deleteCustomer(String customerId) async {
+    if (isCreatingCustomer.value) {
+      return false;
+    }
+
+    isCreatingCustomer.value = true;
+    infoMessage.value = null;
+
+    try {
+      final workspaceRef = _workspaceRef;
+      if (workspaceRef == null) {
+        throw StateError('Workspace non configurato.');
+      }
+
+      await workspaceRef.collection('customers').doc(customerId).delete();
+
+      infoMessage.value = 'Cliente eliminato.';
+      return true;
+    } on FirebaseException catch (error) {
+      infoMessage.value =
+          'Eliminazione cliente non riuscita: ${error.message ?? error.code}';
+    } catch (error) {
+      infoMessage.value = 'Eliminazione cliente non riuscita: $error';
     } finally {
       isCreatingCustomer.value = false;
     }

@@ -26,11 +26,15 @@ class PublicBookingController extends GetxController {
   final feedbackMessage = RxnString();
   final customerName = ''.obs;
   final customServiceLabel = ''.obs;
+  final selectedCustomerId = RxnString();
 
   final services = <SalonService>[].obs;
+  final customers = <Map<String, dynamic>>[].obs;
   final availability = Rxn<AvailabilitySchedule>();
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _servicesSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+      _customersSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _availabilitySubscription;
   WorkspaceConfig? _workspace;
@@ -109,6 +113,9 @@ class PublicBookingController extends GetxController {
 
   bool get canCreateCustomSlot => customSlots.length < 10;
 
+  bool get hasCustomerDirectory =>
+      FirebaseAuth.instance.currentUser != null && customers.isNotEmpty;
+
   String get selectedServiceDisplayName {
     final service = selectedService;
     if (service == null) {
@@ -142,6 +149,16 @@ class PublicBookingController extends GetxController {
         .where('active', isEqualTo: true)
         .snapshots()
         .listen(_handleServices);
+    _customersSubscription = workspaceRef
+        .collection('customers')
+        .orderBy('lastName')
+        .snapshots()
+        .listen((snapshot) {
+          final docs = snapshot.docs
+              .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
+              .toList(growable: false);
+          customers.assignAll(docs);
+        });
     _availabilitySubscription = workspaceRef
         .collection('availability')
         .doc('default_week')
@@ -325,6 +342,28 @@ class PublicBookingController extends GetxController {
 
   void updateCustomerName(String value) {
     customerName.value = value;
+    selectedCustomerId.value = null;
+    feedbackMessage.value = null;
+  }
+
+  void clearCustomerName() {
+    nameController.clear();
+    customerName.value = '';
+    selectedCustomerId.value = null;
+    feedbackMessage.value = null;
+  }
+
+  void selectCustomer(Map<String, dynamic> customer) {
+    final firstName = ((customer['firstName'] as String?) ?? '').trim();
+    final lastName = ((customer['lastName'] as String?) ?? '').trim();
+    final fullName = [firstName, lastName]
+        .where((part) => part.isNotEmpty)
+        .join(' ')
+        .trim();
+    nameController.text = fullName;
+    customerName.value = fullName;
+    selectedCustomerId.value = customer['id'] as String?;
+    feedbackMessage.value = null;
   }
 
   void updateCustomServiceLabel(String value) {
@@ -360,6 +399,7 @@ class PublicBookingController extends GetxController {
           .set(
         {
           'customerName': nameController.text.trim(),
+          'customerId': selectedCustomerId.value,
           'serviceId': service.id,
           'serviceName': service.name,
           'serviceDisplayName': selectedServiceDisplayName,
@@ -375,6 +415,10 @@ class PublicBookingController extends GetxController {
         },
       );
 
+      if (selectedCustomerId.value == null) {
+        await _createCustomerFromBooking(workspaceId);
+      }
+
       feedbackMessage.value =
           'Richiesta inviata per $selectedServiceDisplayName il ${formatDate(selectedDate.value)} alle ${formatTime(slot.start)}.';
       selectedSlot.value = null;
@@ -384,6 +428,7 @@ class PublicBookingController extends GetxController {
       customServiceController.clear();
       customServiceLabel.value = '';
       customerName.value = '';
+      selectedCustomerId.value = null;
     } on FirebaseException catch (error) {
       feedbackMessage.value = switch (error.code) {
         'permission-denied' =>
@@ -395,9 +440,46 @@ class PublicBookingController extends GetxController {
     }
   }
 
+  Future<void> _createCustomerFromBooking(String workspaceId) async {
+    final fullName = nameController.text.trim();
+    if (fullName.isEmpty) {
+      return;
+    }
+
+    final normalizedFullName = fullName.toLowerCase();
+    final alreadyExists = customers.any((customer) {
+      final firstName = ((customer['firstName'] as String?) ?? '').trim();
+      final lastName = ((customer['lastName'] as String?) ?? '').trim();
+      return '$firstName $lastName'.trim().toLowerCase() == normalizedFullName;
+    });
+
+    if (alreadyExists) {
+      return;
+    }
+
+    final parts = fullName.split(RegExp(r'\s+'));
+    final firstName = parts.isEmpty ? fullName : parts.first;
+    final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+
+    await FirebaseFirestore.instance
+        .collection('workspaces')
+        .doc(workspaceId)
+        .collection('customers')
+        .add({
+          'firstName': firstName,
+          'lastName': lastName,
+          'phoneNumber': '',
+          'notes': notesController.text.trim(),
+          'createdFromAppointment': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+  }
+
   @override
   void onClose() {
     _servicesSubscription?.cancel();
+    _customersSubscription?.cancel();
     _availabilitySubscription?.cancel();
     nameController.dispose();
     notesController.dispose();

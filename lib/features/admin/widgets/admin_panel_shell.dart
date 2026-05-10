@@ -7,12 +7,14 @@ class AdminPanelShell extends StatelessWidget {
     required this.subtitle,
     required this.child,
     this.headerAction,
+    this.expandChild = false,
   });
 
   final String title;
   final String subtitle;
   final Widget child;
   final Widget? headerAction;
+  final bool expandChild;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +34,9 @@ class AdminPanelShell extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               if (headerAction != null) ...[
@@ -44,7 +48,7 @@ class AdminPanelShell extends StatelessWidget {
           const SizedBox(height: 6),
           Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 18),
-          child,
+          if (expandChild) Expanded(child: child) else child,
         ],
       ),
     );

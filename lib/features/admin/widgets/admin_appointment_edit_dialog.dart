@@ -61,7 +61,14 @@ class _AdminAppointmentEditDialogState
     final scheduledFor = (widget.data['scheduledFor'] as Timestamp?)?.toDate();
 
     return AlertDialog(
-      title: const Text('Modifica appuntamento'),
+      title: const Text(
+        'Modifica appuntamento',
+        style: TextStyle(
+          color: AppColors.bookingDeepBlue,
+          fontSize: 24,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
       content: SizedBox(
         width: 350,
         child: SingleChildScrollView(
@@ -138,6 +145,7 @@ class _AdminAppointmentEditDialogState
             onPressed: controller.isAppointmentBusy(appointmentId)
                 ? null
                 : () async {
+                    final navigator = Navigator.of(context);
                     final success = await controller.updateAppointment(
                       appointmentId: appointmentId,
                       customerName: _customerNameController.text,
@@ -147,7 +155,7 @@ class _AdminAppointmentEditDialogState
                     );
 
                     if (mounted && success) {
-                      Navigator.of(context).pop();
+                      navigator.pop();
                     }
                   },
             child: Text(

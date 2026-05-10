@@ -36,7 +36,12 @@ class BookingCalendarSection extends GetView<PublicBookingController> {
             ),
           ),
           const SizedBox(height: 24),
-          Text('Servizi', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Servizi',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 12),
           Obx(
             () => Wrap(
@@ -107,7 +112,9 @@ class BookingCalendarSection extends GetView<PublicBookingController> {
                   children: [
                     Text(
                       'Orari disponibili',
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     if (controller.hasCustomSlots) ...[
                       const SizedBox(width: 8),
@@ -122,7 +129,7 @@ class BookingCalendarSection extends GetView<PublicBookingController> {
                               ? Icons.check_circle
                               : Icons.edit,
                           color: controller.isEditingCustomSlots.value
-                              ? Colors.green
+                              ? AppColors.accentBlueDark
                               : Colors.grey,
                           size: 26,
                         ),
@@ -273,7 +280,11 @@ class BookingCalendarSection extends GetView<PublicBookingController> {
                     children: [
                       Text(
                         isEditing ? 'Modifica orario' : 'Imposta un orario',
-                        style: Theme.of(context).textTheme.titleLarge,
+                        style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                          color: AppColors.bookingDeepBlue,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
