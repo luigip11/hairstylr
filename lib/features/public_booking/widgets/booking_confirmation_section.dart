@@ -393,9 +393,24 @@ class _CustomerLookupTable extends StatelessWidget {
                     AppColors.softBlueTint,
                   ),
                   columns: const [
-                    DataColumn(label: Text('Nome')),
-                    DataColumn(label: Text('Cognome')),
-                    DataColumn(label: Text('Seleziona')),
+                    DataColumn(
+                      label: Text(
+                        'Nome',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Cognome',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Seleziona cliente',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
                   ],
                   rows: customers
                       .map(
@@ -404,13 +419,15 @@ class _CustomerLookupTable extends StatelessWidget {
                             DataCell(Text(_value(customer, 'firstName'))),
                             DataCell(Text(_value(customer, 'lastName'))),
                             DataCell(
-                              SizedBox(
-                                width: 32,
-                                height: 32,
-                                child: IconButton.filled(
-                                  onPressed: () => onSelect(customer),
-                                  icon: const Icon(Icons.check_rounded),
-                                  iconSize: 18,
+                              Center(
+                                child: SizedBox(
+                                  width: 32,
+                                  height: 32,
+                                  child: IconButton.filled(
+                                    onPressed: () => onSelect(customer),
+                                    icon: const Icon(Icons.check_rounded),
+                                    iconSize: 18,
+                                  ),
                                 ),
                               ),
                             ),

@@ -32,6 +32,7 @@ class AdminCustomersPanel extends GetView<AdminAreaController> {
                       final compactAction = constraints.maxWidth < 520;
 
                       return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Expanded(
                             child: Obx(
@@ -252,11 +253,46 @@ class _CustomerTableGroup extends StatelessWidget {
                                 AppColors.softBlueTint,
                               ),
                               columns: const [
-                                DataColumn(label: Text('Nome')),
-                                DataColumn(label: Text('Cognome')),
-                                DataColumn(label: Text('Numero di telefono')),
-                                DataColumn(label: Text('Note')),
-                                DataColumn(label: Text('Scheda cliente')),
+                                DataColumn(
+                                  label: Text(
+                                    'Nome',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Cognome',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Numero di telefono',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Note',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Scheda cliente',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
                               ],
                               rows: customers
                                   .map(

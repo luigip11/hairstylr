@@ -80,7 +80,10 @@ class _AdminSidebar extends GetView<AdminAreaController> {
             IconButton(
               tooltip: 'Apri menu',
               onPressed: controller.toggleSidebarCollapsed,
-              icon: const Icon(Icons.menu_rounded),
+              icon: const Icon(
+                Icons.menu_rounded,
+                color: AppColors.bookingDeepBlue,
+              ),
             )
           else
             Row(
@@ -101,7 +104,10 @@ class _AdminSidebar extends GetView<AdminAreaController> {
                 IconButton(
                   tooltip: 'Comprimi menu',
                   onPressed: controller.toggleSidebarCollapsed,
-                  icon: const Icon(Icons.keyboard_double_arrow_left_rounded),
+                  icon: const Icon(
+                    Icons.keyboard_double_arrow_left_rounded,
+                    color: AppColors.bookingDeepBlue,
+                  ),
                 ),
               ],
             ),

@@ -48,43 +48,46 @@ class _AdminAppointmentsPanelState extends State<AdminAppointmentsPanel> {
       return AdminPanelShell(
         title: 'Appuntamenti',
         subtitle: 'Seleziona un giorno dal calendario per gestire l\'agenda.',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _AdminAppointmentsCalendar(controller: controller),
-            if (selectedAppointments.isNotEmpty) ...[
-              const SizedBox(height: 22),
-              Container(
-                padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
-                decoration: BoxDecoration(
-                  color: AppColors.softPanel,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppColors.borderBlueSoft),
-                ),
-                child: SizedBox(
-                  height: listHeight,
-                  child: Scrollbar(
-                    controller: _scrollController,
-                    thumbVisibility: true,
-                    trackVisibility: true,
-                    radius: const Radius.circular(999),
-                    thickness: 5,
-                    child: ListView.builder(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 10.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _AdminAppointmentsCalendar(controller: controller),
+              if (selectedAppointments.isNotEmpty) ...[
+                const SizedBox(height: 40),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.softPanel,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: AppColors.borderBlueSoft),
+                  ),
+                  child: SizedBox(
+                    height: listHeight,
+                    child: Scrollbar(
                       controller: _scrollController,
-                      padding: const EdgeInsets.only(right: 18, bottom: 8),
-                      itemCount: selectedAppointments.length,
-                      itemBuilder: (context, index) {
-                        return AdminAppointmentRow(
-                          data: selectedAppointments[index],
-                          compact: true,
-                        );
-                      },
+                      thumbVisibility: true,
+                      trackVisibility: true,
+                      radius: const Radius.circular(999),
+                      thickness: 5,
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.only(right: 18, bottom: 8),
+                        itemCount: selectedAppointments.length,
+                        itemBuilder: (context, index) {
+                          return AdminAppointmentRow(
+                            data: selectedAppointments[index],
+                            compact: true,
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       );
     });
