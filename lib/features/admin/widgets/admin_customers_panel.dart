@@ -63,9 +63,11 @@ class AdminCustomersPanel extends GetView<AdminAreaController> {
                             height: 48,
                             child: FilledButton.icon(
                               onPressed: () => _showCreateDialog(context),
-                              icon: const Icon(Icons.add_rounded),
+                              icon: compactAction
+                                  ? null
+                                  : const Icon(Icons.add_rounded),
                               label: compactAction
-                                  ? const SizedBox.shrink()
+                                  ? Text('+', style: TextStyle(fontSize: 20))
                                   : const Text('Aggiungi cliente'),
                               style: FilledButton.styleFrom(
                                 padding: EdgeInsets.symmetric(

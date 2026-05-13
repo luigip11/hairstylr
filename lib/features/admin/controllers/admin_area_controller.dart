@@ -11,7 +11,13 @@ import '../../../core/services/bootstrap_service.dart';
 
 enum AdminUtilizationRange { daily, weekly, monthly }
 
-enum AdminDashboardSection { dashboard, user, appointments, customers }
+enum AdminDashboardSection {
+  dashboard,
+  user,
+  appointments,
+  customers,
+  information,
+}
 
 extension AdminUtilizationRangeX on AdminUtilizationRange {
   String get label => switch (this) {
@@ -67,7 +73,7 @@ class AdminAreaController extends GetxController {
   final selectedSection = AdminDashboardSection.dashboard.obs;
   final isSidebarCollapsed = false.obs;
   final selectedUtilizationRange = AdminUtilizationRange.weekly.obs;
-  final selectedAppointmentDate = dateOnly(DateTime.now()).obs;
+  final selectedAppointmentDate = Rxn<DateTime>();
   final visibleAppointmentsMonth = DateTime(
     DateTime.now().year,
     DateTime.now().month,
@@ -106,42 +112,47 @@ class AdminAreaController extends GetxController {
       bookedRatioFor(selectedUtilizationRange.value);
 
   List<Map<String, dynamic>> get selectedDateAppointments =>
-      appointmentsForDate(selectedAppointmentDate.value);
+      selectedAppointmentDate.value == null
+      ? const <Map<String, dynamic>>[]
+      : appointmentsForDate(selectedAppointmentDate.value!);
 
   List<Map<String, dynamic>> get filteredCustomers {
     final query = customerSearchQuery.value.trim().toLowerCase();
-    final filtered = customers.where((customer) {
-      if (query.isEmpty) {
-        return true;
+    final filtered = customers
+        .where((customer) {
+          if (query.isEmpty) {
+            return true;
+          }
+
+          final firstName = ((customer['firstName'] as String?) ?? '')
+              .toLowerCase();
+          final lastName = ((customer['lastName'] as String?) ?? '')
+              .toLowerCase();
+          final fullName = '$firstName $lastName';
+          final reverseFullName = '$lastName $firstName';
+          return firstName.contains(query) ||
+              lastName.contains(query) ||
+              fullName.contains(query) ||
+              reverseFullName.contains(query);
+        })
+        .toList(growable: false);
+
+    return filtered..sort((left, right) {
+      final leftLastName = (left['lastName'] as String?) ?? '';
+      final rightLastName = (right['lastName'] as String?) ?? '';
+      final lastNameCompare = leftLastName.toLowerCase().compareTo(
+        rightLastName.toLowerCase(),
+      );
+      if (lastNameCompare != 0) {
+        return lastNameCompare;
       }
 
-      final firstName = ((customer['firstName'] as String?) ?? '').toLowerCase();
-      final lastName = ((customer['lastName'] as String?) ?? '').toLowerCase();
-      final fullName = '$firstName $lastName';
-      final reverseFullName = '$lastName $firstName';
-      return firstName.contains(query) ||
-          lastName.contains(query) ||
-          fullName.contains(query) ||
-          reverseFullName.contains(query);
-    }).toList(growable: false);
-
-    return filtered
-      ..sort((left, right) {
-        final leftLastName = (left['lastName'] as String?) ?? '';
-        final rightLastName = (right['lastName'] as String?) ?? '';
-        final lastNameCompare = leftLastName.toLowerCase().compareTo(
-          rightLastName.toLowerCase(),
-        );
-        if (lastNameCompare != 0) {
-          return lastNameCompare;
-        }
-
-        final leftFirstName = (left['firstName'] as String?) ?? '';
-        final rightFirstName = (right['firstName'] as String?) ?? '';
-        return leftFirstName.toLowerCase().compareTo(
-          rightFirstName.toLowerCase(),
-        );
-      });
+      final leftFirstName = (left['firstName'] as String?) ?? '';
+      final rightFirstName = (right['firstName'] as String?) ?? '';
+      return leftFirstName.toLowerCase().compareTo(
+        rightFirstName.toLowerCase(),
+      );
+    });
   }
 
   List<DateTime?> get appointmentCalendarCells {
@@ -150,12 +161,11 @@ class AdminAreaController extends GetxController {
       visibleAppointmentsMonth.value.month,
       1,
     );
-    final daysInMonth =
-        DateTime(
-          visibleAppointmentsMonth.value.year,
-          visibleAppointmentsMonth.value.month + 1,
-          0,
-        ).day;
+    final daysInMonth = DateTime(
+      visibleAppointmentsMonth.value.year,
+      visibleAppointmentsMonth.value.month + 1,
+      0,
+    ).day;
     final leading = firstDay.weekday - 1;
     final cells = <DateTime?>[];
 
@@ -186,7 +196,7 @@ class AdminAreaController extends GetxController {
       return 0;
     }
 
-    return switch (range) {
+    final defaultSlots = switch (range) {
       AdminUtilizationRange.daily =>
         schedule.windowsForDate(DateTime.now()).length,
       AdminUtilizationRange.weekly => schedule.weeklySchedule.values.fold<int>(
@@ -199,6 +209,8 @@ class AdminAreaController extends GetxController {
         _rangeEnd(range),
       ),
     };
+
+    return defaultSlots + _customSlotCapacityFor(range);
   }
 
   int bookedAppointmentsFor(AdminUtilizationRange range) {
@@ -245,6 +257,7 @@ class AdminAreaController extends GetxController {
       visibleAppointmentsMonth.value.year,
       visibleAppointmentsMonth.value.month + delta,
     );
+    selectedAppointmentDate.value = null;
   }
 
   void selectAppointmentDate(DateTime date) {
@@ -260,10 +273,12 @@ class AdminAreaController extends GetxController {
   }
 
   List<Map<String, dynamic>> appointmentsForDate(DateTime date) {
-    return appointments.where((appointment) {
-      final scheduledFor = _appointmentDate(appointment);
-      return scheduledFor != null && isSameDate(scheduledFor, date);
-    }).toList(growable: false);
+    return appointments
+        .where((appointment) {
+          final scheduledFor = _appointmentDate(appointment);
+          return scheduledFor != null && isSameDate(scheduledFor, date);
+        })
+        .toList(growable: false);
   }
 
   @override
@@ -666,6 +681,56 @@ class AdminAreaController extends GetxController {
     }
 
     return total;
+  }
+
+  int _customSlotCapacityFor(AdminUtilizationRange range) {
+    final rangeStart = _rangeStart(range);
+    final rangeEnd = _rangeEnd(range);
+    final customSlotKeys = <String>{};
+
+    for (final appointment in appointments) {
+      final scheduledFor = _appointmentDate(appointment);
+      if (scheduledFor == null ||
+          scheduledFor.isBefore(rangeStart) ||
+          !scheduledFor.isBefore(rangeEnd) ||
+          !_isCustomSlotAppointment(appointment)) {
+        continue;
+      }
+
+      final slotLabel = (appointment['slotLabel'] as String?)?.trim();
+      customSlotKeys.add(
+        '${dateKey(scheduledFor)}_${slotLabel?.isNotEmpty == true ? slotLabel : formatTime(scheduledFor)}',
+      );
+    }
+
+    return customSlotKeys.length;
+  }
+
+  bool _isCustomSlotAppointment(Map<String, dynamic> appointment) {
+    final explicitValue = appointment['isCustomSlot'];
+    if (explicitValue is bool) {
+      return explicitValue;
+    }
+
+    final schedule = availability.value;
+    final scheduledFor = _appointmentDate(appointment);
+    if (schedule == null || scheduledFor == null) {
+      return false;
+    }
+
+    final slotLabel = (appointment['slotLabel'] as String?)?.trim();
+    final defaultSlots = buildSlotsForDate(
+      scheduledFor,
+      schedule.windowsForDate(scheduledFor),
+    );
+
+    if (slotLabel != null && slotLabel.isNotEmpty) {
+      return !defaultSlots.any(
+        (slot) => formatTimeRange(slot.start, slot.end) == slotLabel,
+      );
+    }
+
+    return !defaultSlots.any((slot) => slot.start == scheduledFor);
   }
 
   DateTime? _appointmentDate(Map<String, dynamic> appointment) {

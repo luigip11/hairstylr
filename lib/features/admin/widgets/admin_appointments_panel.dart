@@ -169,10 +169,9 @@ class _AdminAppointmentsCalendar extends StatelessWidget {
               }
 
               final hasAppointments = controller.hasAppointmentsOn(date);
-              final isSelected = isSameDate(
-                date,
-                controller.selectedAppointmentDate.value,
-              );
+              final selectedDate = controller.selectedAppointmentDate.value;
+              final isSelected =
+                  selectedDate != null && isSameDate(date, selectedDate);
               final isToday = isSameDate(date, dateOnly(DateTime.now()));
 
               return _AdminCalendarDayCell(

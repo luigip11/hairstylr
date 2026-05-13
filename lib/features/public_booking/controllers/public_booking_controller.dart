@@ -14,10 +14,7 @@ class PublicBookingController extends GetxController {
   final customServiceController = TextEditingController();
 
   final selectedDate = dateOnly(DateTime.now()).obs;
-  final visibleMonth = DateTime(
-    DateTime.now().year,
-    DateTime.now().month,
-  ).obs;
+  final visibleMonth = DateTime(DateTime.now().year, DateTime.now().month).obs;
   final selectedServiceId = RxnString();
   final selectedSlot = Rxn<TimeSlot>();
   final customSlots = <TimeSlot>[].obs;
@@ -32,9 +29,10 @@ class PublicBookingController extends GetxController {
   final customers = <Map<String, dynamic>>[].obs;
   final availability = Rxn<AvailabilitySchedule>();
 
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _servicesSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
-      _customersSubscription;
+  _servicesSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _customersSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _availabilitySubscription;
   WorkspaceConfig? _workspace;
@@ -76,8 +74,11 @@ class PublicBookingController extends GetxController {
       visibleMonth.value.month,
       1,
     );
-    final daysInMonth =
-        DateTime(visibleMonth.value.year, visibleMonth.value.month + 1, 0).day;
+    final daysInMonth = DateTime(
+      visibleMonth.value.year,
+      visibleMonth.value.month + 1,
+      0,
+    ).day;
     final leading = firstDay.weekday - 1;
     final cells = <DateTime?>[];
 
@@ -172,18 +173,12 @@ class PublicBookingController extends GetxController {
   }
 
   void _handleServices(QuerySnapshot<Map<String, dynamic>> snapshot) {
-    final incoming = snapshot.docs
-        .map(SalonService.fromDocument)
-        .toList(growable: false)
-      ..sort((left, right) {
-        const order = {
-          'piega': 0,
-          'taglio': 1,
-          'colore': 2,
-          'altro': 3,
-        };
-        return (order[left.id] ?? 999).compareTo(order[right.id] ?? 999);
-      });
+    final incoming =
+        snapshot.docs.map(SalonService.fromDocument).toList(growable: false)
+          ..sort((left, right) {
+            const order = {'piega': 0, 'taglio': 1, 'colore': 2, 'altro': 3};
+            return (order[left.id] ?? 999).compareTo(order[right.id] ?? 999);
+          });
 
     services.assignAll(incoming);
 
@@ -282,10 +277,7 @@ class PublicBookingController extends GetxController {
       return;
     }
 
-    final slot = TimeSlot(
-      start: start,
-      end: end,
-    );
+    final slot = TimeSlot(start: start, end: end);
 
     if (index != null && index >= 0 && index < customSlots.length) {
       customSlots[index] = slot;
@@ -356,10 +348,10 @@ class PublicBookingController extends GetxController {
   void selectCustomer(Map<String, dynamic> customer) {
     final firstName = ((customer['firstName'] as String?) ?? '').trim();
     final lastName = ((customer['lastName'] as String?) ?? '').trim();
-    final fullName = [firstName, lastName]
-        .where((part) => part.isNotEmpty)
-        .join(' ')
-        .trim();
+    final fullName = [
+      firstName,
+      lastName,
+    ].where((part) => part.isNotEmpty).join(' ').trim();
     nameController.text = fullName;
     customerName.value = fullName;
     selectedCustomerId.value = customer['id'] as String?;
@@ -383,6 +375,10 @@ class PublicBookingController extends GetxController {
 
     final docId =
         '${dateKey(slot.start)}_${twoDigits(slot.start.hour)}${twoDigits(slot.start.minute)}';
+    final isCustomSlot = customSlots.any(
+      (customSlot) =>
+          customSlot.start == slot.start && customSlot.end == slot.end,
+    );
 
     try {
       final workspaceId = _workspace?.id;
@@ -396,24 +392,24 @@ class PublicBookingController extends GetxController {
           .doc(workspaceId)
           .collection('appointments')
           .doc(docId)
-          .set(
-        {
-          'customerName': nameController.text.trim(),
-          'customerId': selectedCustomerId.value,
-          'serviceId': service.id,
-          'serviceName': service.name,
-          'serviceDisplayName': selectedServiceDisplayName,
-          'serviceCustomLabel': customServiceLabel.value.trim(),
-          'serviceDurationMinutes': service.durationMinutes ?? 0,
-          'notes': notesController.text.trim(),
-          'status': 'requested',
-          'scheduledFor': slot.start,
-          'scheduledDateKey': dateKey(slot.start),
-          'slotLabel': formatTimeRange(slot.start, slot.end),
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-      );
+          .set({
+            'customerName': nameController.text.trim(),
+            'customerId': selectedCustomerId.value,
+            'serviceId': service.id,
+            'serviceName': service.name,
+            'serviceDisplayName': selectedServiceDisplayName,
+            'serviceCustomLabel': customServiceLabel.value.trim(),
+            'serviceDurationMinutes': service.durationMinutes ?? 0,
+            'notes': notesController.text.trim(),
+            'status': 'requested',
+            'scheduledFor': slot.start,
+            'scheduledDateKey': dateKey(slot.start),
+            'slotLabel': formatTimeRange(slot.start, slot.end),
+            'slotEnd': slot.end,
+            'isCustomSlot': isCustomSlot,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       if (selectedCustomerId.value == null) {
         await _createCustomerFromBooking(workspaceId);
