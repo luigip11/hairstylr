@@ -9,7 +9,7 @@ class AppTheme {
   static ThemeData get light {
     return ThemeData(
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.brandTeal,
+        seedColor: AppColors.bookingDeepBlue,
         brightness: Brightness.light,
       ),
       scaffoldBackgroundColor: AppColors.appCream,

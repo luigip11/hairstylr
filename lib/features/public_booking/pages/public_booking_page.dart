@@ -31,7 +31,10 @@ class PublicBookingPage extends GetView<PublicBookingController> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   BookingPosterHeader(
-                    onAdminTap: () => Get.toNamed(AppRoutes.admin),
+                    onAdminTap: () {
+                      controller.resetConfirmationSection();
+                      Get.toNamed(AppRoutes.admin);
+                    },
                   ),
                   const SizedBox(height: 20),
                   Obx(() {

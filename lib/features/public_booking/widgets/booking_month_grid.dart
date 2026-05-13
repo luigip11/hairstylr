@@ -58,13 +58,14 @@ class BookingMonthGrid extends StatelessWidget {
             final isSelected = isSameDate(date, selectedDate);
             final isToday = isSameDate(date, dateOnly(DateTime.now()));
 
-            return InkWell(
-              borderRadius: BorderRadius.circular(18),
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: () => onSelect(date),
-              child: Ink(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? bookingAccentBlue
+                      ? AppColors.bookingDeepBlue
                       : AppColors.softBlueAlt,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
@@ -78,9 +79,7 @@ class BookingMonthGrid extends StatelessWidget {
                   child: Text(
                     '${date.day}',
                     style: TextStyle(
-                      color: isSelected
-                          ? bookingAccentBlue
-                          : AppColors.textNavy,
+                      color: isSelected ? Colors.white : AppColors.textNavy,
                       fontWeight: FontWeight.w700,
                       fontSize: 17,
                     ),

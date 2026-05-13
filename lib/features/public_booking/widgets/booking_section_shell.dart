@@ -15,6 +15,7 @@ class BookingSectionShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      clipBehavior: Clip.antiAlias,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.9),
@@ -23,7 +24,12 @@ class BookingSectionShell extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            title,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge!.copyWith(fontWeight: FontWeight.w800),
+          ),
           if (subtitle != null && subtitle!.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),

@@ -14,10 +14,7 @@ class PublicBookingController extends GetxController {
   final customServiceController = TextEditingController();
 
   final selectedDate = dateOnly(DateTime.now()).obs;
-  final visibleMonth = DateTime(
-    DateTime.now().year,
-    DateTime.now().month,
-  ).obs;
+  final visibleMonth = DateTime(DateTime.now().year, DateTime.now().month).obs;
   final selectedServiceId = RxnString();
   final selectedSlot = Rxn<TimeSlot>();
   final customSlots = <TimeSlot>[].obs;
@@ -26,11 +23,16 @@ class PublicBookingController extends GetxController {
   final feedbackMessage = RxnString();
   final customerName = ''.obs;
   final customServiceLabel = ''.obs;
+  final selectedCustomerId = RxnString();
 
   final services = <SalonService>[].obs;
+  final customers = <Map<String, dynamic>>[].obs;
   final availability = Rxn<AvailabilitySchedule>();
 
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _servicesSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _servicesSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _customersSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _availabilitySubscription;
   WorkspaceConfig? _workspace;
@@ -72,8 +74,11 @@ class PublicBookingController extends GetxController {
       visibleMonth.value.month,
       1,
     );
-    final daysInMonth =
-        DateTime(visibleMonth.value.year, visibleMonth.value.month + 1, 0).day;
+    final daysInMonth = DateTime(
+      visibleMonth.value.year,
+      visibleMonth.value.month + 1,
+      0,
+    ).day;
     final leading = firstDay.weekday - 1;
     final cells = <DateTime?>[];
 
@@ -109,6 +114,9 @@ class PublicBookingController extends GetxController {
 
   bool get canCreateCustomSlot => customSlots.length < 10;
 
+  bool get hasCustomerDirectory =>
+      FirebaseAuth.instance.currentUser != null && customers.isNotEmpty;
+
   String get selectedServiceDisplayName {
     final service = selectedService;
     if (service == null) {
@@ -142,6 +150,16 @@ class PublicBookingController extends GetxController {
         .where('active', isEqualTo: true)
         .snapshots()
         .listen(_handleServices);
+    _customersSubscription = workspaceRef
+        .collection('customers')
+        .orderBy('lastName')
+        .snapshots()
+        .listen((snapshot) {
+          final docs = snapshot.docs
+              .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
+              .toList(growable: false);
+          customers.assignAll(docs);
+        });
     _availabilitySubscription = workspaceRef
         .collection('availability')
         .doc('default_week')
@@ -155,18 +173,12 @@ class PublicBookingController extends GetxController {
   }
 
   void _handleServices(QuerySnapshot<Map<String, dynamic>> snapshot) {
-    final incoming = snapshot.docs
-        .map(SalonService.fromDocument)
-        .toList(growable: false)
-      ..sort((left, right) {
-        const order = {
-          'piega': 0,
-          'taglio': 1,
-          'colore': 2,
-          'altro': 3,
-        };
-        return (order[left.id] ?? 999).compareTo(order[right.id] ?? 999);
-      });
+    final incoming =
+        snapshot.docs.map(SalonService.fromDocument).toList(growable: false)
+          ..sort((left, right) {
+            const order = {'piega': 0, 'taglio': 1, 'colore': 2, 'altro': 3};
+            return (order[left.id] ?? 999).compareTo(order[right.id] ?? 999);
+          });
 
     services.assignAll(incoming);
 
@@ -265,10 +277,7 @@ class PublicBookingController extends GetxController {
       return;
     }
 
-    final slot = TimeSlot(
-      start: start,
-      end: end,
-    );
+    final slot = TimeSlot(start: start, end: end);
 
     if (index != null && index >= 0 && index < customSlots.length) {
       customSlots[index] = slot;
@@ -311,6 +320,13 @@ class PublicBookingController extends GetxController {
     feedbackMessage.value = null;
   }
 
+  void resetConfirmationSection() {
+    selectedSlot.value = null;
+    _clearCustomSlots();
+    feedbackMessage.value = null;
+    notesController.clear();
+  }
+
   void _clearCustomSlots() {
     customSlots.clear();
     isEditingCustomSlots.value = false;
@@ -318,6 +334,28 @@ class PublicBookingController extends GetxController {
 
   void updateCustomerName(String value) {
     customerName.value = value;
+    selectedCustomerId.value = null;
+    feedbackMessage.value = null;
+  }
+
+  void clearCustomerName() {
+    nameController.clear();
+    customerName.value = '';
+    selectedCustomerId.value = null;
+    feedbackMessage.value = null;
+  }
+
+  void selectCustomer(Map<String, dynamic> customer) {
+    final firstName = ((customer['firstName'] as String?) ?? '').trim();
+    final lastName = ((customer['lastName'] as String?) ?? '').trim();
+    final fullName = [
+      firstName,
+      lastName,
+    ].where((part) => part.isNotEmpty).join(' ').trim();
+    nameController.text = fullName;
+    customerName.value = fullName;
+    selectedCustomerId.value = customer['id'] as String?;
+    feedbackMessage.value = null;
   }
 
   void updateCustomServiceLabel(String value) {
@@ -337,6 +375,10 @@ class PublicBookingController extends GetxController {
 
     final docId =
         '${dateKey(slot.start)}_${twoDigits(slot.start.hour)}${twoDigits(slot.start.minute)}';
+    final isCustomSlot = customSlots.any(
+      (customSlot) =>
+          customSlot.start == slot.start && customSlot.end == slot.end,
+    );
 
     try {
       final workspaceId = _workspace?.id;
@@ -350,23 +392,28 @@ class PublicBookingController extends GetxController {
           .doc(workspaceId)
           .collection('appointments')
           .doc(docId)
-          .set(
-        {
-          'customerName': nameController.text.trim(),
-          'serviceId': service.id,
-          'serviceName': service.name,
-          'serviceDisplayName': selectedServiceDisplayName,
-          'serviceCustomLabel': customServiceLabel.value.trim(),
-          'serviceDurationMinutes': service.durationMinutes ?? 0,
-          'notes': notesController.text.trim(),
-          'status': 'requested',
-          'scheduledFor': slot.start,
-          'scheduledDateKey': dateKey(slot.start),
-          'slotLabel': formatTimeRange(slot.start, slot.end),
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-      );
+          .set({
+            'customerName': nameController.text.trim(),
+            'customerId': selectedCustomerId.value,
+            'serviceId': service.id,
+            'serviceName': service.name,
+            'serviceDisplayName': selectedServiceDisplayName,
+            'serviceCustomLabel': customServiceLabel.value.trim(),
+            'serviceDurationMinutes': service.durationMinutes ?? 0,
+            'notes': notesController.text.trim(),
+            'status': 'requested',
+            'scheduledFor': slot.start,
+            'scheduledDateKey': dateKey(slot.start),
+            'slotLabel': formatTimeRange(slot.start, slot.end),
+            'slotEnd': slot.end,
+            'isCustomSlot': isCustomSlot,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+      if (selectedCustomerId.value == null) {
+        await _createCustomerFromBooking(workspaceId);
+      }
 
       feedbackMessage.value =
           'Richiesta inviata per $selectedServiceDisplayName il ${formatDate(selectedDate.value)} alle ${formatTime(slot.start)}.';
@@ -377,6 +424,7 @@ class PublicBookingController extends GetxController {
       customServiceController.clear();
       customServiceLabel.value = '';
       customerName.value = '';
+      selectedCustomerId.value = null;
     } on FirebaseException catch (error) {
       feedbackMessage.value = switch (error.code) {
         'permission-denied' =>
@@ -388,9 +436,46 @@ class PublicBookingController extends GetxController {
     }
   }
 
+  Future<void> _createCustomerFromBooking(String workspaceId) async {
+    final fullName = nameController.text.trim();
+    if (fullName.isEmpty) {
+      return;
+    }
+
+    final normalizedFullName = fullName.toLowerCase();
+    final alreadyExists = customers.any((customer) {
+      final firstName = ((customer['firstName'] as String?) ?? '').trim();
+      final lastName = ((customer['lastName'] as String?) ?? '').trim();
+      return '$firstName $lastName'.trim().toLowerCase() == normalizedFullName;
+    });
+
+    if (alreadyExists) {
+      return;
+    }
+
+    final parts = fullName.split(RegExp(r'\s+'));
+    final firstName = parts.isEmpty ? fullName : parts.first;
+    final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+
+    await FirebaseFirestore.instance
+        .collection('workspaces')
+        .doc(workspaceId)
+        .collection('customers')
+        .add({
+          'firstName': firstName,
+          'lastName': lastName,
+          'phoneNumber': '',
+          'notes': notesController.text.trim(),
+          'createdFromAppointment': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+  }
+
   @override
   void onClose() {
     _servicesSubscription?.cancel();
+    _customersSubscription?.cancel();
     _availabilitySubscription?.cancel();
     nameController.dispose();
     notesController.dispose();

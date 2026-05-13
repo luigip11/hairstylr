@@ -12,7 +12,7 @@ class AdminDashboardSetupSection extends GetView<AdminAreaController> {
     return AdminPanelShell(
       title: 'Setup veloce',
       subtitle:
-          'Inizializza servizi, disponibilitÃ  settimanale e documento placeholder.',
+          'Inizializza servizi, disponibilità settimanale e documento placeholder.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

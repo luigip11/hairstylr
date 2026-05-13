@@ -6,11 +6,10 @@ import '../../../app/app_routes.dart';
 import '../../../app/app_theme.dart';
 import '../controllers/admin_area_controller.dart';
 import 'admin_appointments_panel.dart';
-import 'admin_dashboard_setup_section.dart';
-import 'admin_kpi_panel.dart';
-import 'admin_panel_shell.dart';
-import 'admin_popup_selector.dart';
-import 'admin_utilization_chart_card.dart';
+import 'admin_customers_panel.dart';
+import 'admin_dashboard_section.dart';
+import 'admin_information_panel.dart';
+import 'admin_user_panel.dart';
 
 class AdminDashboardView extends GetView<AdminAreaController> {
   const AdminDashboardView({super.key});
@@ -19,24 +18,39 @@ class AdminDashboardView extends GetView<AdminAreaController> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appCream,
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
-        child: Row(
-          children: [
-            const _AdminSidebar(),
-            Expanded(
-              child: Obx(
-                () => AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  child: _AdminSectionBody(
-                    key: ValueKey(controller.selectedSection.value),
-                    section: controller.selectedSection.value,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+            final forceCollapsed = constraints.maxWidth < 700;
+            return Obx(() {
+              final isCollapsed =
+                  forceCollapsed || controller.isSidebarCollapsed.value;
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _AdminSidebar(isCollapsed: isCollapsed),
+                  Expanded(
+                    child: AnimatedPadding(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
+                      padding: EdgeInsets.only(bottom: keyboardInset),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: _AdminSectionBody(
+                          key: ValueKey(controller.selectedSection.value),
+                          section: controller.selectedSection.value,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
-          ],
+                ],
+              );
+            });
+          },
         ),
       ),
     );
@@ -44,14 +58,16 @@ class AdminDashboardView extends GetView<AdminAreaController> {
 }
 
 class _AdminSidebar extends GetView<AdminAreaController> {
-  const _AdminSidebar();
+  const _AdminSidebar({required this.isCollapsed});
+
+  final bool isCollapsed;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 270,
+      width: isCollapsed ? 86 : 270,
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+      padding: EdgeInsets.fromLTRB(16, 18, 16, isCollapsed ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(30),
@@ -66,81 +82,124 @@ class _AdminSidebar extends GetView<AdminAreaController> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              IconButton.filledTonal(
-                onPressed: () => Get.offNamed(AppRoutes.home),
-                icon: const Icon(Icons.arrow_back_rounded),
+          if (isCollapsed)
+            IconButton(
+              tooltip: 'Apri menu',
+              onPressed: controller.toggleSidebarCollapsed,
+              icon: const Icon(
+                Icons.menu_rounded,
+                color: AppColors.bookingDeepBlue,
               ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Area admin',
-                  style: TextStyle(
-                    fontFamily: 'StoryScript',
-                    fontSize: 30,
-                    color: AppColors.bookingDeepBlue,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 26),
-          Obx(
-            () => Column(
+            )
+          else
+            Row(
               children: [
-                _SidebarItem(
-                  icon: Icons.dashboard_rounded,
-                  label: 'Dashboard',
-                  selected:
-                      controller.selectedSection.value ==
-                      AdminDashboardSection.dashboard,
-                  onTap: () => controller.selectSection(
-                    AdminDashboardSection.dashboard,
+                const Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 8.0),
+                    child: Text(
+                      'Area admin',
+                      style: TextStyle(
+                        fontFamily: 'StoryScript',
+                        fontSize: 30,
+                        color: AppColors.bookingDeepBlue,
+                      ),
+                    ),
                   ),
                 ),
-                _SidebarItem(
-                  icon: Icons.person_rounded,
-                  label: 'Utente',
-                  selected:
-                      controller.selectedSection.value ==
-                      AdminDashboardSection.user,
-                  onTap: () =>
-                      controller.selectSection(AdminDashboardSection.user),
-                ),
-                _SidebarItem(
-                  icon: Icons.event_note_rounded,
-                  label: 'Appuntamenti',
-                  selected:
-                      controller.selectedSection.value ==
-                      AdminDashboardSection.appointments,
-                  onTap: () => controller.selectSection(
-                    AdminDashboardSection.appointments,
-                  ),
-                ),
-                _SidebarItem(
-                  icon: Icons.groups_rounded,
-                  label: 'Clienti',
-                  selected:
-                      controller.selectedSection.value ==
-                      AdminDashboardSection.customers,
-                  onTap: () => controller.selectSection(
-                    AdminDashboardSection.customers,
+                IconButton(
+                  tooltip: 'Comprimi menu',
+                  onPressed: controller.toggleSidebarCollapsed,
+                  icon: const Icon(
+                    Icons.keyboard_double_arrow_left_rounded,
+                    color: AppColors.bookingDeepBlue,
                   ),
                 ),
               ],
             ),
-          ),
-          const Spacer(),
-          TextButton.icon(
-            onPressed: controller.signOut,
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.dangerRed,
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          const SizedBox(height: 26),
+          Expanded(
+            child: Obx(
+              () => SingleChildScrollView(
+                child: Column(
+                  children: [
+                    _SidebarItem(
+                      icon: Icons.dashboard_rounded,
+                      label: 'Dashboard',
+                      collapsed: isCollapsed,
+                      selected:
+                          controller.selectedSection.value ==
+                          AdminDashboardSection.dashboard,
+                      onTap: () => controller.selectSection(
+                        AdminDashboardSection.dashboard,
+                      ),
+                    ),
+                    _SidebarItem(
+                      icon: Icons.person_rounded,
+                      label: 'Utente',
+                      collapsed: isCollapsed,
+                      selected:
+                          controller.selectedSection.value ==
+                          AdminDashboardSection.user,
+                      onTap: () =>
+                          controller.selectSection(AdminDashboardSection.user),
+                    ),
+                    _SidebarItem(
+                      icon: Icons.event_note_rounded,
+                      label: 'Appuntamenti',
+                      collapsed: isCollapsed,
+                      selected:
+                          controller.selectedSection.value ==
+                          AdminDashboardSection.appointments,
+                      onTap: () => controller.selectSection(
+                        AdminDashboardSection.appointments,
+                      ),
+                    ),
+                    _SidebarItem(
+                      icon: Icons.groups_rounded,
+                      label: 'Clienti',
+                      collapsed: isCollapsed,
+                      selected:
+                          controller.selectedSection.value ==
+                          AdminDashboardSection.customers,
+                      onTap: () => controller.selectSection(
+                        AdminDashboardSection.customers,
+                      ),
+                    ),
+                    _SidebarItem(
+                      icon: Icons.info_rounded,
+                      label: 'Informazioni',
+                      collapsed: isCollapsed,
+                      selected:
+                          controller.selectedSection.value ==
+                          AdminDashboardSection.information,
+                      onTap: () => controller.selectSection(
+                        AdminDashboardSection.information,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            icon: const Icon(Icons.logout_rounded),
-            label: const Text('Logout'),
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: () => Get.offNamed(AppRoutes.home),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSlate,
+              alignment: isCollapsed ? Alignment.center : Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ),
+            icon: const Icon(Icons.arrow_back_rounded, size: 20),
+            label: isCollapsed
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: const Text(
+                      'Torna indietro',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -152,12 +211,14 @@ class _SidebarItem extends StatelessWidget {
   const _SidebarItem({
     required this.icon,
     required this.label,
+    required this.collapsed,
     required this.selected,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
+  final bool collapsed;
   final bool selected;
   final VoidCallback onTap;
 
@@ -169,32 +230,41 @@ class _SidebarItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: EdgeInsets.symmetric(
+            horizontal: collapsed ? 0 : 14,
+            vertical: 14,
+          ),
           decoration: BoxDecoration(
             color: selected ? AppColors.softBlueTint : Colors.transparent,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: selected ? AppColors.borderBlue : Colors.transparent,
+              color: selected ? AppColors.bookingDeepBlue : Colors.transparent,
             ),
           ),
           child: Row(
+            mainAxisAlignment: collapsed
+                ? MainAxisAlignment.center
+                : MainAxisAlignment.start,
             children: [
               Icon(
                 icon,
                 color: selected
                     ? AppTheme.accentBlueDark
-                    : AppColors.textSlate,
+                    : AppColors.textGreyBlue,
               ),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected
-                      ? AppTheme.accentBlueDark
-                      : AppColors.textSlate,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+              if (!collapsed) ...[
+                const SizedBox(width: 12),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: selected
+                        ? AppTheme.accentBlueDark
+                        : AppColors.textGreyBlue,
+                    fontSize: selected ? 16 : 15,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -211,138 +281,27 @@ class _AdminSectionBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final child = switch (section) {
-      AdminDashboardSection.dashboard => const _DashboardSection(),
-      AdminDashboardSection.user => const _UserSection(),
-      AdminDashboardSection.appointments => const _AppointmentsSection(),
-      AdminDashboardSection.customers => const _CustomersSection(),
+      AdminDashboardSection.dashboard => const AdminDashboardSectionPanel(),
+      AdminDashboardSection.user => const AdminUserPanel(),
+      AdminDashboardSection.appointments => const AdminAppointmentsPanel(),
+      AdminDashboardSection.customers => const AdminCustomersPanel(),
+      AdminDashboardSection.information => const AdminInformationPanel(),
     };
+
+    if (section == AdminDashboardSection.customers) {
+      return GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(4, 20, 20, 28),
+          child: SizedBox.expand(child: child),
+        ),
+      );
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(4, 20, 20, 28),
       child: child,
-    );
-  }
-}
-
-class _DashboardSection extends GetView<AdminAreaController> {
-  const _DashboardSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 20,
-      runSpacing: 20,
-      children: [
-        const SizedBox(width: 600, child: AdminUtilizationChartCard()),
-        Obx(
-          () => SizedBox(
-            width: 360,
-            height: 174,
-            child: AdminKpiPanel(
-              label: 'Appuntamenti in agenda',
-              value: '${controller.appointments.length}',
-              detail: 'Prenotazioni totali nel workspace',
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _UserSection extends GetView<AdminAreaController> {
-  const _UserSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 20,
-      runSpacing: 20,
-      children: [
-        Obx(
-          () => SizedBox(
-            width: 400,
-            height: 160,
-            child: AdminKpiPanel(
-              label: 'Workspace attivo',
-              value: controller.currentWorkspaceName,
-              detail: controller.currentUser.value?.email ?? 'admin',
-            ),
-          ),
-        ),
-        const SizedBox(width: 420, child: AdminDashboardSetupSection()),
-      ],
-    );
-  }
-}
-
-class _AppointmentsSection extends GetView<AdminAreaController> {
-  const _AppointmentsSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      final range = controller.selectedAppointmentsRange.value;
-      return AdminAppointmentsPanel(
-        appointments: controller.filteredAppointments,
-        emptyMessage:
-            'Nessun appuntamento trovato per il filtro ${range.label.toLowerCase()}.',
-        headerAction: AdminPopupSelector<AdminUtilizationRange>(
-          width: 182,
-          value: range,
-          items: controller.utilizationRanges
-              .map(
-                (item) => AdminPopupSelectorItem<AdminUtilizationRange>(
-                  value: item,
-                  label: item.label,
-                ),
-              )
-              .toList(growable: false),
-          onChanged: controller.selectAppointmentsRange,
-        ),
-      );
-    });
-  }
-}
-
-class _CustomersSection extends StatelessWidget {
-  const _CustomersSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return AdminPanelShell(
-      title: 'Clienti',
-      subtitle: 'Rubrica clienti e storico appuntamenti.',
-      child: SizedBox(
-        height: 360,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 46,
-                color: AppColors.textChartMuted,
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Non ci sono clienti censiti.',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.bookingDeepBlue,
-                ),
-              ),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Aggiungi cliente'),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

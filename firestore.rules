@@ -27,6 +27,10 @@ service cloud.firestore {
       match /appointments/{document=**} {
         allow read, write: if canAccessWorkspace(workspaceId);
       }
+
+      match /customers/{document=**} {
+        allow read, write: if canAccessWorkspace(workspaceId);
+      }
     }
 
     match /{document=**} {

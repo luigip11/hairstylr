@@ -61,68 +61,97 @@ class _AdminAppointmentEditDialogState
     final scheduledFor = (widget.data['scheduledFor'] as Timestamp?)?.toDate();
 
     return AlertDialog(
-      title: const Text('Modifica appuntamento'),
+      title: const Text(
+        'Modifica appuntamento',
+        style: TextStyle(
+          color: AppColors.bookingDeepBlue,
+          fontSize: 24,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
       content: SizedBox(
-        width: 350,
+        width: 390,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (scheduledFor != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 25),
-                  child: Text(
-                    'Slot: ${formatDate(scheduledFor)} alle ${formatTime(scheduledFor)}',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ),
-              TextField(
-                controller: _customerNameController,
-                decoration: const InputDecoration(labelText: 'Nome cliente'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _serviceNameController,
-                decoration: const InputDecoration(labelText: 'Servizio'),
-              ),
-              const SizedBox(height: 12),
-              const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Text(
-                  'Stato',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textGreyBlue,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              AdminPopupSelector<String>(
-                value: _status,
-                items: _statusEntries
-                    .map(
-                      (entry) => AdminPopupSelectorItem<String>(
-                        value: entry.value,
-                        label: entry.label,
-                        icon: entry.icon,
-                        iconColor: entry.color,
+                  child: RichText(
+                    text: TextSpan(
+                      style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                        color: AppColors.textGreyBlue,
                       ),
-                    )
-                    .toList(growable: false),
-                onChanged: (value) {
-                  setState(() {
-                    _status = value;
-                  });
-                },
+                      children: [
+                        const TextSpan(text: 'Slot: '),
+                        TextSpan(
+                          text:
+                              '${formatDate(scheduledFor)} alle ${formatTime(scheduledFor)}',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              _EditableAppointmentCard(
+                icon: Icons.person_rounded,
+                label: 'Nome cliente',
+                child: TextField(
+                  controller: _customerNameController,
+                  onTapOutside: (_) =>
+                      FocusManager.instance.primaryFocus?.unfocus(),
+                  textCapitalization: TextCapitalization.words,
+                  decoration: _dialogInputDecoration('Nome cliente'),
+                ),
               ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _notesController,
-                minLines: 3,
-                maxLines: 5,
-                decoration: const InputDecoration(labelText: 'Note'),
+              const SizedBox(height: 12),
+              _EditableAppointmentCard(
+                icon: Icons.content_cut_rounded,
+                label: 'Servizio',
+                child: TextField(
+                  controller: _serviceNameController,
+                  onTapOutside: (_) =>
+                      FocusManager.instance.primaryFocus?.unfocus(),
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: _dialogInputDecoration('Servizio'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _EditableAppointmentCard(
+                icon: Icons.task_alt_rounded,
+                label: 'Stato',
+                child: AdminPopupSelector<String>(
+                  value: _status,
+                  items: _statusEntries
+                      .map(
+                        (entry) => AdminPopupSelectorItem<String>(
+                          value: entry.value,
+                          label: entry.label,
+                          icon: entry.icon,
+                          iconColor: entry.color,
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: (value) {
+                    setState(() {
+                      _status = value;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              _EditableAppointmentCard(
+                icon: Icons.notes_rounded,
+                label: 'Note',
+                child: TextField(
+                  controller: _notesController,
+                  onTapOutside: (_) =>
+                      FocusManager.instance.primaryFocus?.unfocus(),
+                  minLines: 3,
+                  maxLines: 5,
+                  decoration: _dialogInputDecoration('Note'),
+                ),
               ),
             ],
           ),
@@ -138,6 +167,7 @@ class _AdminAppointmentEditDialogState
             onPressed: controller.isAppointmentBusy(appointmentId)
                 ? null
                 : () async {
+                    final navigator = Navigator.of(context);
                     final success = await controller.updateAppointment(
                       appointmentId: appointmentId,
                       customerName: _customerNameController.text,
@@ -147,7 +177,7 @@ class _AdminAppointmentEditDialogState
                     );
 
                     if (mounted && success) {
-                      Navigator.of(context).pop();
+                      navigator.pop();
                     }
                   },
             child: Text(
@@ -160,6 +190,84 @@ class _AdminAppointmentEditDialogState
       ],
     );
   }
+}
+
+class _EditableAppointmentCard extends StatelessWidget {
+  const _EditableAppointmentCard({
+    required this.icon,
+    required this.label,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.borderBlueSoft),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: const BoxDecoration(
+              color: AppColors.softBlueTint,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: AppColors.bookingDeepBlue, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppColors.textGreyBlue,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                child,
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+InputDecoration _dialogInputDecoration(String label) {
+  const border = OutlineInputBorder(
+    borderRadius: BorderRadius.all(Radius.circular(14)),
+    borderSide: BorderSide(color: AppColors.borderNeutral, width: 1.4),
+  );
+
+  return InputDecoration(
+    hintText: label,
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    filled: true,
+    fillColor: Colors.white,
+    border: border,
+    enabledBorder: border,
+    focusedBorder: const OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(14)),
+      borderSide: BorderSide(color: AppColors.bookingDeepBlue, width: 1.7),
+    ),
+  );
 }
 
 class _StatusConfig {
