@@ -149,7 +149,7 @@ class PublicBookingController extends GetxController {
         .collection('services')
         .where('active', isEqualTo: true)
         .snapshots()
-        .listen(_handleServices);
+        .listen(_handleServices, onError: _handleFirestoreStreamError);
     _customersSubscription = workspaceRef
         .collection('customers')
         .orderBy('lastName')
@@ -159,7 +159,7 @@ class PublicBookingController extends GetxController {
               .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
               .toList(growable: false);
           customers.assignAll(docs);
-        });
+        }, onError: _handleFirestoreStreamError);
     _availabilitySubscription = workspaceRef
         .collection('availability')
         .doc('default_week')
@@ -169,7 +169,17 @@ class PublicBookingController extends GetxController {
               ? AvailabilitySchedule.fromDocument(snapshot)
               : null;
           _normalizeSelection();
-        });
+        }, onError: _handleFirestoreStreamError);
+  }
+
+  void _handleFirestoreStreamError(Object error) {
+    if (error is FirebaseException && error.code == 'permission-denied') {
+      feedbackMessage.value =
+          'Permessi Firestore insufficienti. Verifica di aver deployato le regole aggiornate.';
+      return;
+    }
+
+    feedbackMessage.value = 'Errore Firestore: $error';
   }
 
   void _handleServices(QuerySnapshot<Map<String, dynamic>> snapshot) {

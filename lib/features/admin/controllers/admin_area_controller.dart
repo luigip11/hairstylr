@@ -87,6 +87,7 @@ class AdminAreaController extends GetxController {
   _customersSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _availabilitySubscription;
+  bool _seededLuigiMockDataThisSession = false;
 
   bool get isAuthorizedAdmin {
     return currentWorkspace.value != null;
@@ -287,6 +288,13 @@ class AdminAreaController extends GetxController {
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
       currentUser.value = user;
       currentWorkspace.value = AppConfig.workspaceForEmail(user?.email);
+      if (user == null) {
+        _seededLuigiMockDataThisSession = false;
+      } else if (currentWorkspace.value == AppConfig.luigiTestWorkspace &&
+          !_seededLuigiMockDataThisSession) {
+        _seededLuigiMockDataThisSession = true;
+        unawaited(_seedLuigiMockData());
+      }
       _bindAvailability();
       _bindAppointments();
       _bindCustomers();
@@ -315,11 +323,17 @@ class AdminAreaController extends GetxController {
         .collection('availability')
         .doc('default_week')
         .snapshots()
-        .listen((snapshot) {
-          availability.value = snapshot.exists
-              ? AvailabilitySchedule.fromDocument(snapshot)
-              : null;
-        });
+        .listen(
+          (snapshot) {
+            availability.value = snapshot.exists
+                ? AvailabilitySchedule.fromDocument(snapshot)
+                : null;
+          },
+          onError: (Object error) {
+            availability.value = null;
+            _setFirestoreStreamError('disponibilita', error);
+          },
+        );
   }
 
   void _bindAppointments() {
@@ -339,13 +353,19 @@ class AdminAreaController extends GetxController {
         .collection('appointments')
         .orderBy('scheduledFor')
         .snapshots()
-        .listen((snapshot) {
-          final docs = snapshot.docs
-              .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
-              .where((data) => data['isSeed'] != true)
-              .toList(growable: false);
-          appointments.assignAll(docs);
-        });
+        .listen(
+          (snapshot) {
+            final docs = snapshot.docs
+                .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
+                .where((data) => data['isSeed'] != true)
+                .toList(growable: false);
+            appointments.assignAll(docs);
+          },
+          onError: (Object error) {
+            appointments.clear();
+            _setFirestoreStreamError('appuntamenti', error);
+          },
+        );
   }
 
   void _bindCustomers() {
@@ -365,12 +385,28 @@ class AdminAreaController extends GetxController {
         .collection('customers')
         .orderBy('lastName')
         .snapshots()
-        .listen((snapshot) {
-          final docs = snapshot.docs
-              .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
-              .toList(growable: false);
-          customers.assignAll(docs);
-        });
+        .listen(
+          (snapshot) {
+            final docs = snapshot.docs
+                .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
+                .toList(growable: false);
+            customers.assignAll(docs);
+          },
+          onError: (Object error) {
+            customers.clear();
+            _setFirestoreStreamError('clienti', error);
+          },
+        );
+  }
+
+  void _setFirestoreStreamError(String source, Object error) {
+    if (error is FirebaseException && error.code == 'permission-denied') {
+      infoMessage.value =
+          'Permessi Firestore insufficienti per leggere $source. Verifica di aver deployato le regole aggiornate.';
+      return;
+    }
+
+    infoMessage.value = 'Errore Firestore su $source: $error';
   }
 
   void updateCustomerSearch(String value) {
@@ -426,6 +462,7 @@ class AdminAreaController extends GetxController {
       await _bootstrapService.seedInitialData(
         workspaceId: workspace.id,
         workspaceName: workspace.name,
+        includeMockData: workspace == AppConfig.luigiTestWorkspace,
       );
       infoMessage.value =
           'Servizi e disponibilità iniziali aggiornati per ${workspace.name}.';
@@ -433,6 +470,27 @@ class AdminAreaController extends GetxController {
       infoMessage.value = 'Seed non riuscito: $error';
     } finally {
       isSeeding.value = false;
+    }
+  }
+
+  Future<void> _seedLuigiMockData() async {
+    final workspace = currentWorkspace.value;
+    if (workspace == null || workspace != AppConfig.luigiTestWorkspace) {
+      return;
+    }
+
+    try {
+      await _bootstrapService.seedInitialData(
+        workspaceId: workspace.id,
+        workspaceName: workspace.name,
+        includeMockData: true,
+      );
+    } on FirebaseException catch (error) {
+      infoMessage.value = error.code == 'permission-denied'
+          ? 'Seed demo Luigi non consentito: deploya le regole Firestore aggiornate.'
+          : 'Seed demo Luigi non riuscito: ${error.message ?? error.code}';
+    } catch (error) {
+      infoMessage.value = 'Seed demo Luigi non riuscito: $error';
     }
   }
 
