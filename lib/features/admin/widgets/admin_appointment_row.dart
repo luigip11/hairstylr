@@ -103,9 +103,7 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
                   const SizedBox(height: 8),
                   Text(
                     notes,
-                    style: const TextStyle(
-                      color: AppColors.textMutedGreenAlt,
-                    ),
+                    style: const TextStyle(color: AppColors.textMutedGreenAlt),
                   ),
                 ],
               ],
@@ -126,9 +124,8 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
                       : () {
                           showDialog<void>(
                             context: context,
-                            builder: (_) => AdminAppointmentEditDialog(
-                              data: data,
-                            ),
+                            builder: (_) =>
+                                AdminAppointmentEditDialog(data: data),
                           );
                         },
                   icon: const Icon(Icons.edit_outlined),
@@ -182,138 +179,125 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
     required String notes,
     required String status,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 70,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppColors.softBlueTint,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Center(
-              child: Text(
-                scheduledFor == null ? '--:--' : formatTime(scheduledFor),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.bookingDeepBlue,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 310;
+        final timeBox = Container(
+          width: narrow ? 62 : 70,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.softBlueTint,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Center(
+            child: Text(
+              scheduledFor == null ? '--:--' : formatTime(scheduledFor),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.bookingDeepBlue,
+                fontSize: narrow ? 15 : 16,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+        );
+
+        final details = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              customerName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 5),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
-                  customerName,
+                  serviceName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: const TextStyle(fontSize: 13),
                 ),
-                const SizedBox(height: 5),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      serviceName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    _StatusChip(status: status, compact: true),
-                  ],
-                ),
-                if (notes.isNotEmpty) ...[
-                  const SizedBox(height: 5),
-                  Text(
-                    notes,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textMutedGreenAlt,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
+                _StatusChip(status: status, compact: true),
               ],
             ),
-          ),
-          const SizedBox(width: 10),
-          Obx(() {
-            final isBusy = controller.isAppointmentBusy(appointmentId);
-            final isConfirmed = status == 'confirmed' || status == 'completed';
+            if (notes.isNotEmpty) ...[
+              const SizedBox(height: 5),
+              Text(
+                notes,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textMutedGreenAlt,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ],
+        );
 
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _CompactActionButton(
-                  tooltip: 'Modifica appuntamento',
-                  icon: Icons.edit_outlined,
-                  onPressed: isBusy
-                      ? null
-                      : () {
-                          showDialog<void>(
-                            context: context,
-                            builder: (_) => AdminAppointmentEditDialog(
-                              data: data,
-                            ),
-                          );
-                        },
-                ),
-                const SizedBox(width: 6),
-                _CompactActionButton(
-                  tooltip: isConfirmed
-                      ? 'Appuntamento gia confermato'
-                      : 'Conferma appuntamento',
-                  icon: isBusy
-                      ? Icons.hourglass_top_rounded
-                      : Icons.check_rounded,
-                  backgroundColor: isConfirmed
-                      ? AppColors.successSurface
-                      : AppColors.confirmedBlueSurface,
-                  foregroundColor: isConfirmed
-                      ? AppColors.successGreen
-                      : AppTheme.accentBlueDark,
-                  onPressed: isBusy || isConfirmed
-                      ? null
-                      : () => controller.confirmAppointment(appointmentId),
-                ),
-                const SizedBox(width: 6),
-                _CompactActionButton(
-                  tooltip: 'Elimina appuntamento',
-                  icon: Icons.delete_outline_rounded,
-                  backgroundColor: AppColors.dangerSurface,
-                  foregroundColor: AppColors.dangerRed,
-                  onPressed: isBusy
-                      ? null
-                      : () => _confirmDelete(context, appointmentId),
-                ),
-              ],
+        final actions = _CompactAppointmentActions(
+          appointmentId: appointmentId,
+          status: status,
+          onEdit: () {
+            showDialog<void>(
+              context: context,
+              builder: (_) => AdminAppointmentEditDialog(data: data),
             );
-          }),
-        ],
-      ),
+          },
+          onDelete: () => _confirmDelete(context, appointmentId),
+        );
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: narrow
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        timeBox,
+                        const SizedBox(width: 10),
+                        Expanded(child: details),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Align(alignment: Alignment.centerRight, child: actions),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    timeBox,
+                    const SizedBox(width: 12),
+                    Expanded(child: details),
+                    const SizedBox(width: 10),
+                    actions,
+                  ],
+                ),
+        );
+      },
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, String appointmentId) async {
+  Future<void> _confirmDelete(
+    BuildContext context,
+    String appointmentId,
+  ) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -339,6 +323,63 @@ class AdminAppointmentRow extends GetView<AdminAreaController> {
     if (shouldDelete == true) {
       await controller.deleteAppointment(appointmentId);
     }
+  }
+}
+
+class _CompactAppointmentActions extends GetView<AdminAreaController> {
+  const _CompactAppointmentActions({
+    required this.appointmentId,
+    required this.status,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final String appointmentId;
+  final String status;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final isBusy = controller.isAppointmentBusy(appointmentId);
+      final isConfirmed = status == 'confirmed' || status == 'completed';
+
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _CompactActionButton(
+            tooltip: 'Modifica appuntamento',
+            icon: Icons.edit_outlined,
+            onPressed: isBusy ? null : onEdit,
+          ),
+          const SizedBox(width: 6),
+          _CompactActionButton(
+            tooltip: isConfirmed
+                ? 'Appuntamento gia confermato'
+                : 'Conferma appuntamento',
+            icon: isBusy ? Icons.hourglass_top_rounded : Icons.check_rounded,
+            backgroundColor: isConfirmed
+                ? AppColors.successSurface
+                : AppColors.confirmedBlueSurface,
+            foregroundColor: isConfirmed
+                ? AppColors.successGreen
+                : AppTheme.accentBlueDark,
+            onPressed: isBusy || isConfirmed
+                ? null
+                : () => controller.confirmAppointment(appointmentId),
+          ),
+          const SizedBox(width: 6),
+          _CompactActionButton(
+            tooltip: 'Elimina appuntamento',
+            icon: Icons.delete_outline_rounded,
+            backgroundColor: AppColors.dangerSurface,
+            foregroundColor: AppColors.dangerRed,
+            onPressed: isBusy ? null : onDelete,
+          ),
+        ],
+      );
+    });
   }
 }
 

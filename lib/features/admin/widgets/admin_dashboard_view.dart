@@ -23,14 +23,24 @@ class AdminDashboardView extends GetView<AdminAreaController> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
-            final forceCollapsed = constraints.maxWidth < 700;
+            final useMobileSidebar = constraints.maxWidth < 700;
+            if (!useMobileSidebar && controller.isSidebarCollapsed.value) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (controller.isSidebarCollapsed.value) {
+                  controller.toggleSidebarCollapsed();
+                }
+              });
+            }
             return Obx(() {
               final isCollapsed =
-                  forceCollapsed || controller.isSidebarCollapsed.value;
+                  useMobileSidebar || controller.isSidebarCollapsed.value;
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _AdminSidebar(isCollapsed: isCollapsed),
+                  _AdminSidebar(
+                    isCollapsed: isCollapsed,
+                    compact: useMobileSidebar,
+                  ),
                   Expanded(
                     child: AnimatedPadding(
                       duration: const Duration(milliseconds: 220),
@@ -58,16 +68,22 @@ class AdminDashboardView extends GetView<AdminAreaController> {
 }
 
 class _AdminSidebar extends GetView<AdminAreaController> {
-  const _AdminSidebar({required this.isCollapsed});
+  const _AdminSidebar({required this.isCollapsed, required this.compact});
 
   final bool isCollapsed;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: isCollapsed ? 86 : 270,
-      margin: const EdgeInsets.all(16),
-      padding: EdgeInsets.fromLTRB(16, 18, 16, isCollapsed ? 12 : 16),
+      width: isCollapsed ? (compact ? 74 : 86) : 270,
+      margin: EdgeInsets.all(compact ? 8 : 16),
+      padding: EdgeInsets.fromLTRB(
+        compact ? 10 : 16,
+        compact ? 14 : 18,
+        compact ? 10 : 16,
+        isCollapsed ? 12 : 16,
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(30),
@@ -82,7 +98,16 @@ class _AdminSidebar extends GetView<AdminAreaController> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (isCollapsed)
+          if (compact)
+            IconButton(
+              tooltip: 'Torna alla home',
+              onPressed: () => Get.offNamed(AppRoutes.home),
+              icon: const Icon(
+                Icons.home_rounded,
+                color: AppColors.bookingDeepBlue,
+              ),
+            )
+          else if (isCollapsed)
             IconButton(
               tooltip: 'Apri menu',
               onPressed: controller.toggleSidebarCollapsed,
@@ -182,25 +207,32 @@ class _AdminSidebar extends GetView<AdminAreaController> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          TextButton.icon(
-            onPressed: () => Get.offNamed(AppRoutes.home),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSlate,
-              alignment: isCollapsed ? Alignment.center : Alignment.centerLeft,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            ),
-            icon: const Icon(Icons.arrow_back_rounded, size: 20),
-            label: isCollapsed
-                ? const SizedBox.shrink()
-                : Padding(
-                    padding: const EdgeInsets.only(left: 8.0),
-                    child: const Text(
-                      'Torna indietro',
-                      style: TextStyle(fontSize: 16),
+          if (!compact) ...[
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () => Get.offNamed(AppRoutes.home),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSlate,
+                alignment: isCollapsed
+                    ? Alignment.center
+                    : Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 14,
+                ),
+              ),
+              icon: const Icon(Icons.arrow_back_rounded, size: 20),
+              label: isCollapsed
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: const Text(
+                        'Torna indietro',
+                        style: TextStyle(fontSize: 16),
+                      ),
                     ),
-                  ),
-          ),
+            ),
+          ],
         ],
       ),
     );
@@ -292,16 +324,36 @@ class _AdminSectionBody extends StatelessWidget {
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(4, 20, 20, 28),
-          child: SizedBox.expand(child: child),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 520;
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                compact ? 4 : 4,
+                compact ? 8 : 20,
+                compact ? 8 : 20,
+                compact ? 12 : 28,
+              ),
+              child: SizedBox.expand(child: child),
+            );
+          },
         ),
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(4, 20, 20, 28),
-      child: child,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 520;
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            4,
+            compact ? 8 : 20,
+            compact ? 8 : 20,
+            compact ? 12 : 28,
+          ),
+          child: child,
+        );
+      },
     );
   }
 }

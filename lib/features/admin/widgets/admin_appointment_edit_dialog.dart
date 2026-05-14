@@ -61,6 +61,8 @@ class _AdminAppointmentEditDialogState
     final scheduledFor = (widget.data['scheduledFor'] as Timestamp?)?.toDate();
 
     return AlertDialog(
+      backgroundColor: AppColors.surfaceWhite,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
       title: const Text(
         'Modifica appuntamento',
         style: TextStyle(
@@ -78,19 +80,23 @@ class _AdminAppointmentEditDialogState
               if (scheduledFor != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 25),
-                  child: RichText(
-                    text: TextSpan(
-                      style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                        color: AppColors.textGreyBlue,
-                      ),
-                      children: [
-                        const TextSpan(text: 'Slot: '),
-                        TextSpan(
-                          text:
-                              '${formatDate(scheduledFor)} alle ${formatTime(scheduledFor)}',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: RichText(
+                      textAlign: TextAlign.left,
+                      text: TextSpan(
+                        style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                          color: AppColors.textGreyBlue,
                         ),
-                      ],
+                        children: [
+                          const TextSpan(text: 'Slot: '),
+                          TextSpan(
+                            text:
+                                '${formatDate(scheduledFor)} alle ${formatTime(scheduledFor)}',
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 
 import '../../../app/app_colors.dart';
 import '../../../core/services/phone_launcher.dart';
+import '../../../core/widgets/custom_empty_state.dart';
 import '../controllers/admin_area_controller.dart';
 import 'admin_panel_shell.dart';
 
@@ -20,9 +21,10 @@ class AdminCustomersPanel extends GetView<AdminAreaController> {
         subtitle: 'Rubrica clienti e info relative ad essi.',
         expandChild: true,
         child: customers.isEmpty && controller.customerSearchQuery.value.isEmpty
-            ? _CustomersEmptyState(
+            ? CustomEmptyState(
                 message: 'Non ci sono clienti censiti.',
-                onAdd: () => _showCreateDialog(context),
+                actionLabel: 'Aggiungi cliente',
+                onAction: () => _showCreateDialog(context),
               )
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -83,7 +85,7 @@ class AdminCustomersPanel extends GetView<AdminAreaController> {
                   const SizedBox(height: 24),
                   Expanded(
                     child: customers.isEmpty
-                        ? const _CustomersEmptyState(
+                        ? const CustomEmptyState(
                             message: 'Nessun cliente trovato.',
                           )
                         : _CustomerTablesList(
@@ -157,49 +159,6 @@ class _CustomerTablesListState extends State<_CustomerTablesList> {
                 customers: entry.value,
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CustomersEmptyState extends StatelessWidget {
-  const _CustomersEmptyState({required this.message, this.onAdd});
-
-  final String message;
-  final VoidCallback? onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 360,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.info_outline_rounded,
-              size: 46,
-              color: AppColors.textChartMuted,
-            ),
-            const SizedBox(height: 14),
-            Text(
-              message,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textChartMuted,
-              ),
-            ),
-            if (onAdd != null) ...[
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: onAdd,
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Aggiungi cliente'),
-              ),
-            ],
           ],
         ),
       ),
@@ -679,65 +638,44 @@ class AdminCustomerDetailDialog extends StatelessWidget {
       ),
       content: SizedBox(
         width: 390,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _DetailCard(
-              icon: Icons.person_rounded,
-              label: 'Nome',
-              value: _value('firstName'),
-            ),
-            _DetailCard(
-              icon: Icons.badge_rounded,
-              label: 'Cognome',
-              value: _value('lastName'),
-            ),
-            _DetailCard(
-              icon: Icons.phone_rounded,
-              label: 'Numero di telefono',
-              value: _value('phoneNumber'),
-              onTap: hasCallablePhoneNumber(_value('phoneNumber'))
-                  ? () => launchPhoneCall(_value('phoneNumber'))
-                  : null,
-              helperText: hasCallablePhoneNumber(_value('phoneNumber'))
-                  ? 'Tocca per chiamare'
-                  : 'Numero da inserire',
-            ),
-            _DetailCard(
-              icon: Icons.notes_rounded,
-              label: 'Note',
-              value: _value('notes'),
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _DetailCard(
+                icon: Icons.person_rounded,
+                label: 'Nome',
+                value: _value('firstName'),
+              ),
+              _DetailCard(
+                icon: Icons.badge_rounded,
+                label: 'Cognome',
+                value: _value('lastName'),
+              ),
+              _DetailCard(
+                icon: Icons.phone_rounded,
+                label: 'Numero di telefono',
+                value: _value('phoneNumber'),
+                onTap: hasCallablePhoneNumber(_value('phoneNumber'))
+                    ? () => launchPhoneCall(_value('phoneNumber'))
+                    : null,
+                helperText: hasCallablePhoneNumber(_value('phoneNumber'))
+                    ? 'Tocca per chiamare'
+                    : 'Numero da inserire',
+              ),
+              _DetailCard(
+                icon: Icons.notes_rounded,
+                label: 'Note',
+                value: _value('notes'),
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
-        Row(
-          children: [
-            OutlinedButton.icon(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Get.dialog<void>(AdminCustomerCreateDialog(customer: customer));
-              },
-              icon: const Icon(Icons.edit_rounded),
-              label: const Text('Modifica'),
-            ),
-            const SizedBox(width: 10),
-            FilledButton.icon(
-              onPressed: () => _confirmDelete(context),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.dangerRed,
-                foregroundColor: Colors.white,
-              ),
-              icon: const Icon(Icons.delete_outline_rounded),
-              label: const Text('Elimina'),
-            ),
-            const Spacer(),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Chiudi'),
-            ),
-          ],
+        _CustomerDetailActions(
+          customer: customer,
+          onDelete: () => _confirmDelete(context),
         ),
       ],
     );
@@ -789,6 +727,48 @@ class AdminCustomerDetailDialog extends StatelessWidget {
       return '-';
     }
     return value;
+  }
+}
+
+class _CustomerDetailActions extends StatelessWidget {
+  const _CustomerDetailActions({
+    required this.customer,
+    required this.onDelete,
+  });
+
+  final Map<String, dynamic> customer;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      alignment: WrapAlignment.end,
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () {
+            Navigator.of(context).pop();
+            Get.dialog<void>(AdminCustomerCreateDialog(customer: customer));
+          },
+          icon: const Icon(Icons.edit_rounded),
+          label: const Text('Modifica'),
+        ),
+        FilledButton.icon(
+          onPressed: onDelete,
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.dangerRed,
+            foregroundColor: Colors.white,
+          ),
+          icon: const Icon(Icons.delete_outline_rounded),
+          label: const Text('Elimina'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Chiudi'),
+        ),
+      ],
+    );
   }
 }
 
