@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../../app/app_colors.dart';
 import '../../../app/app_theme.dart';
 import '../../../core/models/booking_support.dart';
+import '../../../core/widgets/custom_empty_state.dart';
 import '../controllers/public_booking_controller.dart';
 import 'booking_choice_pill.dart';
 import 'booking_section_shell.dart';
@@ -60,54 +61,77 @@ class BookingConfirmationSection extends GetView<PublicBookingController> {
             ),
           ),
           const SizedBox(height: 18),
-          Obx(
-            () => Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: controller.nameController,
-                    onTapOutside: (_) =>
-                        FocusManager.instance.primaryFocus?.unfocus(),
-                    decoration: InputDecoration(
-                      labelText: 'Nome cliente',
-                      suffixIcon: controller.customerName.value.isNotEmpty
-                          ? IconButton(
-                              tooltip: 'Cancella nome cliente',
-                              onPressed: controller.clearCustomerName,
-                              icon: const Icon(Icons.close_rounded),
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: AppColors.fieldSurface,
-                      enabledBorder: _bookingFieldBorder,
-                      focusedBorder: _bookingFieldBorder.copyWith(
-                        borderSide: const BorderSide(
-                          color: bookingAccentBlue,
-                          width: 1.5,
-                        ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return Obx(() {
+                final compact = constraints.maxWidth < 360;
+                final hasCustomerDirectory = controller.hasCustomerDirectory;
+                final hasCustomerName =
+                    controller.customerName.value.isNotEmpty;
+                final nameField = TextField(
+                  controller: controller.nameController,
+                  onTapOutside: (_) =>
+                      FocusManager.instance.primaryFocus?.unfocus(),
+                  decoration: InputDecoration(
+                    labelText: 'Nome cliente',
+                    suffixIcon: hasCustomerName
+                        ? IconButton(
+                            tooltip: 'Cancella nome cliente',
+                            onPressed: controller.clearCustomerName,
+                            icon: const Icon(Icons.close_rounded),
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: AppColors.fieldSurface,
+                    enabledBorder: _bookingFieldBorder,
+                    focusedBorder: _bookingFieldBorder.copyWith(
+                      borderSide: const BorderSide(
+                        color: bookingAccentBlue,
+                        width: 1.5,
                       ),
                     ),
-                    onChanged: controller.updateCustomerName,
                   ),
-                ),
-                if (controller.hasCustomerDirectory) ...[
-                  const SizedBox(width: 12),
-                  FilledButton(
-                    onPressed: () => showDialog<void>(
-                      context: context,
-                      builder: (_) => const _CustomerLookupDialog(),
-                    ),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: bookingAccentBlue,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(0, 56),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    child: const Text('Lista clienti'),
+                  onChanged: controller.updateCustomerName,
+                );
+
+                if (!hasCustomerDirectory) {
+                  return nameField;
+                }
+
+                final lookupButton = FilledButton(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const _CustomerLookupDialog(),
                   ),
-                ],
-              ],
-            ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: bookingAccentBlue,
+                    foregroundColor: Colors.white,
+                    minimumSize: Size(compact ? double.infinity : 0, 56),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: const Text('Lista clienti'),
+                );
+
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      nameField,
+                      const SizedBox(height: 10),
+                      lookupButton,
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: nameField),
+                    const SizedBox(width: 12),
+                    lookupButton,
+                  ],
+                );
+              });
+            },
           ),
           const SizedBox(height: 14),
           TextField(
@@ -180,7 +204,10 @@ class _CustomerLookupDialog extends GetView<PublicBookingController> {
       backgroundColor: AppColors.surfaceWhite,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 620),
+        constraints: BoxConstraints(
+          maxWidth: 620,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+        ),
         child: const _CustomerLookupContent(),
       ),
     );
@@ -265,8 +292,12 @@ class _CustomerLookupContentState extends State<_CustomerLookupContent> {
           Expanded(
             child: Obx(() {
               final customers = _filteredCustomers(controller.customers);
+              final selectedCustomerId = controller.selectedCustomerId.value;
               if (customers.isEmpty) {
-                return const Center(child: Text('Nessun cliente trovato.'));
+                return const CustomEmptyState(
+                  message: 'Nessun cliente trovato.',
+                  height: null,
+                );
               }
 
               return Scrollbar(
@@ -278,10 +309,12 @@ class _CustomerLookupContentState extends State<_CustomerLookupContent> {
                   child: Column(
                     children: [
                       ..._groupedCustomers(customers).entries.map(
-                        (entry) => _CustomerLookupTable(
+                        (entry) => _CustomerLookupGroup(
                           letter: entry.key,
                           customers: entry.value,
+                          selectedCustomerId: selectedCustomerId,
                           onSelect: _selectCustomer,
+                          onDeselect: _deselectCustomer,
                         ),
                       ),
                     ],
@@ -347,18 +380,26 @@ class _CustomerLookupContentState extends State<_CustomerLookupContent> {
     controller.selectCustomer(customer);
     Navigator.of(context).pop();
   }
+
+  void _deselectCustomer() {
+    controller.clearCustomerName();
+  }
 }
 
-class _CustomerLookupTable extends StatelessWidget {
-  const _CustomerLookupTable({
+class _CustomerLookupGroup extends StatelessWidget {
+  const _CustomerLookupGroup({
     required this.letter,
     required this.customers,
+    required this.selectedCustomerId,
     required this.onSelect,
+    required this.onDeselect,
   });
 
   final String letter;
   final List<Map<String, dynamic>> customers;
+  final String? selectedCustomerId;
   final ValueChanged<Map<String, dynamic>> onSelect;
+  final VoidCallback onDeselect;
 
   @override
   Widget build(BuildContext context) {
@@ -378,66 +419,104 @@ class _CustomerLookupTable extends StatelessWidget {
               ),
             ),
           ),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: AppColors.borderBlueSoft),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  headingRowColor: WidgetStateProperty.all(
-                    AppColors.softBlueTint,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 420) {
+                return DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: AppColors.borderBlueSoft),
+                    borderRadius: BorderRadius.circular(18),
                   ),
-                  columns: const [
-                    DataColumn(
-                      label: Text(
-                        'Nome',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                  child: Column(
+                    children: [
+                      for (
+                        var index = 0;
+                        index < customers.length;
+                        index++
+                      ) ...[
+                        _CustomerLookupCard(
+                          customer: customers[index],
+                          selected: _isSelected(customers[index]),
+                          onSelect: onSelect,
+                          onDeselect: onDeselect,
+                        ),
+                        if (index != customers.length - 1)
+                          const Divider(
+                            height: 1,
+                            color: AppColors.borderBlueSoft,
+                          ),
+                      ],
+                    ],
+                  ),
+                );
+              }
+
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: AppColors.borderBlueSoft),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.all(
+                        AppColors.softBlueTint,
                       ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Cognome',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        'Seleziona cliente',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                  rows: customers
-                      .map(
-                        (customer) => DataRow(
-                          cells: [
-                            DataCell(Text(_value(customer, 'firstName'))),
-                            DataCell(Text(_value(customer, 'lastName'))),
-                            DataCell(
-                              Center(
-                                child: SizedBox(
-                                  width: 32,
-                                  height: 32,
-                                  child: IconButton.filled(
-                                    onPressed: () => onSelect(customer),
-                                    icon: const Icon(Icons.check_rounded),
-                                    iconSize: 18,
+                      columns: const [
+                        DataColumn(
+                          label: Text(
+                            'Nome',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Cognome',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Seleziona cliente',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                      rows: customers
+                          .map(
+                            (customer) => DataRow(
+                              color: WidgetStateProperty.resolveWith((states) {
+                                if (_isSelected(customer)) {
+                                  return AppColors.softBlueTint;
+                                }
+                                return null;
+                              }),
+                              cells: [
+                                DataCell(Text(_value(customer, 'firstName'))),
+                                DataCell(Text(_value(customer, 'lastName'))),
+                                DataCell(
+                                  Center(
+                                    child: _CustomerLookupActionButton(
+                                      selected: _isSelected(customer),
+                                      onPressed: _isSelected(customer)
+                                          ? onDeselect
+                                          : () => onSelect(customer),
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      )
-                      .toList(growable: false),
+                          )
+                          .toList(growable: false),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -450,5 +529,85 @@ class _CustomerLookupTable extends StatelessWidget {
       return '-';
     }
     return value;
+  }
+
+  bool _isSelected(Map<String, dynamic> customer) {
+    final customerId = customer['id'] as String?;
+    return customerId != null && customerId == selectedCustomerId;
+  }
+}
+
+class _CustomerLookupCard extends StatelessWidget {
+  const _CustomerLookupCard({
+    required this.customer,
+    required this.selected,
+    required this.onSelect,
+    required this.onDeselect,
+  });
+
+  final Map<String, dynamic> customer;
+  final bool selected;
+  final ValueChanged<Map<String, dynamic>> onSelect;
+  final VoidCallback onDeselect;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: selected ? AppColors.softBlueTint : Colors.white,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        title: Text(
+          '${_value(customer, 'firstName')} ${_value(customer, 'lastName')}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        trailing: _CustomerLookupActionButton(
+          selected: selected,
+          onPressed: selected ? onDeselect : () => onSelect(customer),
+        ),
+      ),
+    );
+  }
+
+  String _value(Map<String, dynamic> customer, String key) {
+    final value = customer[key] as String?;
+    if (value == null || value.trim().isEmpty) {
+      return '-';
+    }
+    return value;
+  }
+}
+
+class _CustomerLookupActionButton extends StatelessWidget {
+  const _CustomerLookupActionButton({
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 34,
+      height: 34,
+      child: IconButton.filled(
+        tooltip: selected ? 'Deseleziona cliente' : 'Seleziona cliente',
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          backgroundColor: selected ? AppColors.dangerRed : bookingAccentBlue,
+          foregroundColor: Colors.white,
+          disabledForegroundColor: Colors.white,
+        ),
+        icon: Icon(
+          selected ? Icons.close_rounded : Icons.check_rounded,
+          color: Colors.white,
+        ),
+        iconSize: 18,
+        padding: EdgeInsets.zero,
+      ),
+    );
   }
 }

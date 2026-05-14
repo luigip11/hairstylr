@@ -45,50 +45,65 @@ class _AdminAppointmentsPanelState extends State<AdminAppointmentsPanel> {
     return Obx(() {
       final selectedAppointments = controller.selectedDateAppointments;
 
-      return AdminPanelShell(
-        title: 'Appuntamenti',
-        subtitle: 'Seleziona un giorno dal calendario per gestire l\'agenda.',
-        child: Padding(
-          padding: const EdgeInsets.only(top: 10.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _AdminAppointmentsCalendar(controller: controller),
-              if (selectedAppointments.isNotEmpty) ...[
-                const SizedBox(height: 40),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.softPanel,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.borderBlueSoft),
-                  ),
-                  child: SizedBox(
-                    height: listHeight,
-                    child: Scrollbar(
-                      controller: _scrollController,
-                      thumbVisibility: true,
-                      trackVisibility: true,
-                      radius: const Radius.circular(999),
-                      thickness: 5,
-                      child: ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.only(right: 18, bottom: 8),
-                        itemCount: selectedAppointments.length,
-                        itemBuilder: (context, index) {
-                          return AdminAppointmentRow(
-                            data: selectedAppointments[index],
-                            compact: true,
-                          );
-                        },
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 380;
+
+          return AdminPanelShell(
+            title: 'Appuntamenti',
+            subtitle:
+                'Seleziona un giorno dal calendario per gestire l\'agenda.',
+            child: Padding(
+              padding: const EdgeInsets.only(top: 10.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _AdminAppointmentsCalendar(controller: controller),
+                  if (selectedAppointments.isNotEmpty) ...[
+                    SizedBox(height: compact ? 24 : 40),
+                    Container(
+                      padding: EdgeInsets.fromLTRB(
+                        compact ? 10 : 14,
+                        compact ? 10 : 14,
+                        compact ? 8 : 10,
+                        compact ? 10 : 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.softPanel,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppColors.borderBlueSoft),
+                      ),
+                      child: SizedBox(
+                        height: listHeight,
+                        child: Scrollbar(
+                          controller: _scrollController,
+                          thumbVisibility: true,
+                          trackVisibility: true,
+                          radius: const Radius.circular(999),
+                          thickness: 5,
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            padding: EdgeInsets.only(
+                              right: compact ? 10 : 18,
+                              bottom: 8,
+                            ),
+                            itemCount: selectedAppointments.length,
+                            itemBuilder: (context, index) {
+                              return AdminAppointmentRow(
+                                data: selectedAppointments[index],
+                                compact: true,
+                              );
+                            },
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
       );
     });
   }
@@ -106,84 +121,92 @@ class _AdminAppointmentsCalendar extends StatelessWidget {
       final visibleMonth = controller.visibleAppointmentsMonth.value;
       final calendarCells = controller.appointmentCalendarCells;
 
-      return Column(
-        children: [
-          Row(
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 360;
+
+          return Column(
             children: [
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                onPressed: () => controller.changeAppointmentsMonth(-1),
-                icon: const Icon(Icons.chevron_left_rounded),
-              ),
-              Expanded(
-                child: Text(
-                  '${monthLong(visibleMonth)} ${visibleMonth.year}',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.bookingDeepBlue,
+              Row(
+                children: [
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => controller.changeAppointmentsMonth(-1),
+                    icon: const Icon(Icons.chevron_left_rounded),
                   ),
-                ),
-              ),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                onPressed: () => controller.changeAppointmentsMonth(1),
-                icon: const Icon(Icons.chevron_right_rounded),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: weekdayLabels
-                .map(
-                  (label) => Expanded(
-                    child: Center(
-                      child: Text(
-                        label,
-                        style: const TextStyle(
-                          color: AppColors.textCalendarMuted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
+                  Expanded(
+                    child: Text(
+                      '${monthLong(visibleMonth)} ${visibleMonth.year}',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontSize: compact ? 19 : null,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.bookingDeepBlue,
                       ),
                     ),
                   ),
-                )
-                .toList(growable: false),
-          ),
-          const SizedBox(height: 8),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              childAspectRatio: 1.28,
-            ),
-            itemCount: calendarCells.length,
-            itemBuilder: (context, index) {
-              final date = calendarCells[index];
-              if (date == null) {
-                return const SizedBox.shrink();
-              }
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => controller.changeAppointmentsMonth(1),
+                    icon: const Icon(Icons.chevron_right_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: weekdayLabels
+                    .map(
+                      (label) => Expanded(
+                        child: Center(
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              color: AppColors.textCalendarMuted,
+                              fontSize: compact ? 11 : 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+              const SizedBox(height: 8),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  mainAxisSpacing: compact ? 5 : 8,
+                  crossAxisSpacing: compact ? 5 : 8,
+                  childAspectRatio: compact ? 1.0 : 1.28,
+                ),
+                itemCount: calendarCells.length,
+                itemBuilder: (context, index) {
+                  final date = calendarCells[index];
+                  if (date == null) {
+                    return const SizedBox.shrink();
+                  }
 
-              final hasAppointments = controller.hasAppointmentsOn(date);
-              final selectedDate = controller.selectedAppointmentDate.value;
-              final isSelected =
-                  selectedDate != null && isSameDate(date, selectedDate);
-              final isToday = isSameDate(date, dateOnly(DateTime.now()));
+                  final hasAppointments = controller.hasAppointmentsOn(date);
+                  final selectedDate = controller.selectedAppointmentDate.value;
+                  final isSelected =
+                      selectedDate != null && isSameDate(date, selectedDate);
+                  final isToday = isSameDate(date, dateOnly(DateTime.now()));
 
-              return _AdminCalendarDayCell(
-                date: date,
-                hasAppointments: hasAppointments,
-                isSelected: isSelected,
-                isToday: isToday,
-                onTap: () => controller.selectAppointmentDate(date),
-              );
-            },
-          ),
-        ],
+                  return _AdminCalendarDayCell(
+                    date: date,
+                    compact: compact,
+                    hasAppointments: hasAppointments,
+                    isSelected: isSelected,
+                    isToday: isToday,
+                    onTap: () => controller.selectAppointmentDate(date),
+                  );
+                },
+              ),
+            ],
+          );
+        },
       );
     });
   }
@@ -192,6 +215,7 @@ class _AdminAppointmentsCalendar extends StatelessWidget {
 class _AdminCalendarDayCell extends StatelessWidget {
   const _AdminCalendarDayCell({
     required this.date,
+    required this.compact,
     required this.hasAppointments,
     required this.isSelected,
     required this.isToday,
@@ -199,6 +223,7 @@ class _AdminCalendarDayCell extends StatelessWidget {
   });
 
   final DateTime date;
+  final bool compact;
   final bool hasAppointments;
   final bool isSelected;
   final bool isToday;
@@ -228,14 +253,14 @@ class _AdminCalendarDayCell extends StatelessWidget {
               '${date.day}',
               style: TextStyle(
                 color: isSelected ? Colors.white : AppColors.textNavy,
-                fontSize: 17,
+                fontSize: compact ? 15 : 17,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: compact ? 2 : 4),
             AnimatedContainer(
               duration: const Duration(milliseconds: 160),
-              width: hasAppointments ? 16 : 0,
+              width: hasAppointments ? (compact ? 12 : 16) : 0,
               height: 3,
               decoration: BoxDecoration(
                 color: isSelected ? AppColors.heroBlueTop : AppTheme.accentBlue,

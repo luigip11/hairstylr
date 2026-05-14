@@ -1,4 +1,11 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
+
+import '../models/booking_support.dart';
+
+const String luigiTestSeedAssetPath = 'assets/mock/luigi_test_seed.json';
 
 const List<String> _defaultSlots = [
   '07:00-07:30',
@@ -11,174 +18,32 @@ const List<String> _defaultSlots = [
   '20:30-21:00',
 ];
 
-const List<Map<String, String>> _mockCustomers = [
+const List<Map<String, Object?>> _defaultServices = [
   {
-    'id': 'mock-alberti-anna',
-    'firstName': 'Anna',
-    'lastName': 'Alberti',
-    'phoneNumber': '3331002001',
-    'notes': 'Preferisce appuntamenti serali.',
+    'id': 'piega',
+    'name': 'Piega',
+    'description': 'Piega e finish.',
+    'durationMinutes': 60,
+    'price': 30,
   },
   {
-    'id': 'mock-amato-alice',
-    'firstName': 'Alice',
-    'lastName': 'Amato',
-    'phoneNumber': '3331002002',
-    'notes': 'Colore ogni 6 settimane.',
+    'id': 'taglio',
+    'name': 'Taglio',
+    'description': 'Taglio donna a domicilio.',
+    'durationMinutes': 45,
+    'price': 25,
   },
   {
-    'id': 'mock-conti-chiara',
-    'firstName': 'Chiara',
-    'lastName': 'Conti',
-    'phoneNumber': '3331002003',
-    'notes': 'Capello mosso, piega naturale.',
+    'id': 'colore',
+    'name': 'Colore',
+    'description': 'Colore base o ritocco.',
+    'durationMinutes': 120,
+    'price': 55,
   },
   {
-    'id': 'mock-costa-camilla',
-    'firstName': 'Camilla',
-    'lastName': 'Costa',
-    'phoneNumber': '3331002004',
-    'notes': 'Richiede sempre conferma WhatsApp.',
-  },
-  {
-    'id': 'mock-de-luca-denise',
-    'firstName': 'Denise',
-    'lastName': 'De Luca',
-    'phoneNumber': '3331002005',
-    'notes': 'Taglio medio scalato.',
-  },
-  {
-    'id': 'mock-damiani-daria',
-    'firstName': 'Daria',
-    'lastName': 'Damiani',
-    'phoneNumber': '3331002006',
-    'notes': 'Cliente demo.',
-  },
-  {
-    'id': 'mock-esposito-elena',
-    'firstName': 'Elena',
-    'lastName': 'Esposito',
-    'phoneNumber': '3331002007',
-    'notes': 'Preferisce la mattina.',
-  },
-  {
-    'id': 'mock-errico-emma',
-    'firstName': 'Emma',
-    'lastName': 'Errico',
-    'phoneNumber': '3331002008',
-    'notes': 'Piega liscia.',
-  },
-  {
-    'id': 'mock-ferrari-francesca',
-    'firstName': 'Francesca',
-    'lastName': 'Ferrari',
-    'phoneNumber': '3331002009',
-    'notes': 'Colore castano freddo.',
-  },
-  {
-    'id': 'mock-fontana-federica',
-    'firstName': 'Federica',
-    'lastName': 'Fontana',
-    'phoneNumber': '3331002010',
-    'notes': 'Cliente demo.',
-  },
-  {
-    'id': 'mock-gallo-giulia',
-    'firstName': 'Giulia',
-    'lastName': 'Gallo',
-    'phoneNumber': '3331002011',
-    'notes': 'Taglio corto.',
-  },
-  {
-    'id': 'mock-greco-gaia',
-    'firstName': 'Gaia',
-    'lastName': 'Greco',
-    'phoneNumber': '3331002012',
-    'notes': 'Preferisce sabato.',
-  },
-  {
-    'id': 'mock-lombardi-laura',
-    'firstName': 'Laura',
-    'lastName': 'Lombardi',
-    'phoneNumber': '3331002013',
-    'notes': 'Piega morbida.',
-  },
-  {
-    'id': 'mock-leone-livia',
-    'firstName': 'Livia',
-    'lastName': 'Leone',
-    'phoneNumber': '3331002014',
-    'notes': 'Colore senza ammoniaca.',
-  },
-  {
-    'id': 'mock-martini-marta',
-    'firstName': 'Marta',
-    'lastName': 'Martini',
-    'phoneNumber': '3331002015',
-    'notes': 'Cliente demo.',
-  },
-  {
-    'id': 'mock-moretti-monica',
-    'firstName': 'Monica',
-    'lastName': 'Moretti',
-    'phoneNumber': '3331002016',
-    'notes': 'Preferisce pausa pranzo.',
-  },
-  {
-    'id': 'mock-neri-nadia',
-    'firstName': 'Nadia',
-    'lastName': 'Neri',
-    'phoneNumber': '3331002017',
-    'notes': 'Taglio punte.',
-  },
-  {
-    'id': 'mock-nardi-noemi',
-    'firstName': 'Noemi',
-    'lastName': 'Nardi',
-    'phoneNumber': '3331002018',
-    'notes': 'Piega volume.',
-  },
-  {
-    'id': 'mock-pellegrini-paola',
-    'firstName': 'Paola',
-    'lastName': 'Pellegrini',
-    'phoneNumber': '3331002019',
-    'notes': 'Cliente demo.',
-  },
-  {
-    'id': 'mock-pagani-petra',
-    'firstName': 'Petra',
-    'lastName': 'Pagani',
-    'phoneNumber': '3331002020',
-    'notes': 'Colore ramato.',
-  },
-  {
-    'id': 'mock-ricci-rita',
-    'firstName': 'Rita',
-    'lastName': 'Ricci',
-    'phoneNumber': '3331002021',
-    'notes': 'Taglio bob.',
-  },
-  {
-    'id': 'mock-rizzo-rossella',
-    'firstName': 'Rossella',
-    'lastName': 'Rizzo',
-    'phoneNumber': '3331002022',
-    'notes': 'Preferisce appuntamenti brevi.',
-  },
-  {
-    'id': 'mock-santoro-sara',
-    'firstName': 'Sara',
-    'lastName': 'Santoro',
-    'phoneNumber': '3331002023',
-    'notes': 'Piega onde.',
-  },
-  {
-    'id': 'mock-serra-silvia',
-    'firstName': 'Silvia',
-    'lastName': 'Serra',
-    'phoneNumber': '3331002024',
-    'notes': 'Cliente demo.',
+    'id': 'altro',
+    'name': 'Altro',
+    'description': 'Servizio personalizzato su richiesta.',
   },
 ];
 
@@ -190,7 +55,12 @@ class BootstrapService {
   Future<void> seedInitialData({
     required String workspaceId,
     required String workspaceName,
+    bool includeMockData = false,
+    String? seedAssetPath,
   }) async {
+    final seedData = includeMockData
+        ? await _loadSeedData(seedAssetPath ?? luigiTestSeedAssetPath)
+        : const <String, dynamic>{};
     final batch = _firestore.batch();
     final workspaceRef = _firestore.collection('workspaces').doc(workspaceId);
 
@@ -199,64 +69,50 @@ class BootstrapService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    final services = [
-      {
-        'id': 'piega',
-        'name': 'Piega',
-        'description': 'Piega e finish.',
-        'durationMinutes': 60,
-        'price': 30,
-      },
-      {
-        'id': 'taglio',
-        'name': 'Taglio',
-        'description': 'Taglio donna a domicilio.',
-        'durationMinutes': 45,
-        'price': 25,
-      },
-      {
-        'id': 'colore',
-        'name': 'Colore',
-        'description': 'Colore base o ritocco.',
-        'durationMinutes': 120,
-        'price': 55,
-      },
-      {
-        'id': 'altro',
-        'name': 'Altro',
-        'description': 'Servizio personalizzato su richiesta.',
-      },
-    ];
+    final services = _mapList(seedData['services']);
+    for (final service in services.isEmpty ? _defaultServices : services) {
+      final id = service['id'] as String?;
+      if (id == null || id.isEmpty) {
+        continue;
+      }
 
-    for (final service in services) {
-      final ref = workspaceRef
-          .collection('services')
-          .doc(service['id']! as String);
+      final ref = workspaceRef.collection('services').doc(id);
       batch.set(ref, {
         'name': service['name'],
         'description': service['description'],
         'durationMinutes': service['durationMinutes'],
         'price': service['price'],
-        'active': true,
+        'active': (service['active'] as bool?) ?? true,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     }
 
+    final availability = _map(seedData['availability']);
+    final weeklySchedule = _map(availability['weeklySchedule']);
     final availabilityRef = workspaceRef
         .collection('availability')
         .doc('default_week');
     batch.set(availabilityRef, {
-      'timezone': 'Europe/Rome',
-      'weeklySchedule': {
-        'monday': _defaultSlots,
-        'tuesday': _defaultSlots,
-        'wednesday': _defaultSlots,
-        'thursday': _defaultSlots,
-        'friday': _defaultSlots,
-        'saturday': _defaultSlots,
-        'sunday': _defaultSlots,
-      },
+      'timezone': (availability['timezone'] as String?) ?? 'Europe/Rome',
+      'weeklySchedule': weeklySchedule.isEmpty
+          ? {
+              'monday': _defaultSlots,
+              'tuesday': _defaultSlots,
+              'wednesday': _defaultSlots,
+              'thursday': _defaultSlots,
+              'friday': _defaultSlots,
+              'saturday': _defaultSlots,
+              'sunday': _defaultSlots,
+            }
+          : weeklySchedule.map(
+              (key, value) => MapEntry(
+                key,
+                value is List
+                    ? value.map((slot) => slot.toString()).toList()
+                    : const <String>[],
+              ),
+            ),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
@@ -278,10 +134,40 @@ class BootstrapService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    for (final customer in _mockCustomers) {
-      final customerRef = workspaceRef.collection('customers').doc(
-        customer['id']!,
+    if (includeMockData) {
+      _seedMockCustomers(batch, workspaceRef, _mapList(seedData['customers']));
+      _seedMockAppointments(
+        batch,
+        workspaceRef,
+        _mapList(seedData['appointments']),
       );
+    }
+
+    await batch.commit();
+  }
+
+  Future<Map<String, dynamic>> _loadSeedData(String assetPath) async {
+    final rawJson = await rootBundle.loadString(assetPath);
+    final decoded = jsonDecode(rawJson);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+
+    throw FormatException('Seed JSON non valido: $assetPath');
+  }
+
+  void _seedMockCustomers(
+    WriteBatch batch,
+    DocumentReference<Map<String, dynamic>> workspaceRef,
+    List<Map<String, Object?>> customers,
+  ) {
+    for (final customer in customers) {
+      final id = customer['id'] as String?;
+      if (id == null || id.isEmpty) {
+        continue;
+      }
+
+      final customerRef = workspaceRef.collection('customers').doc(id);
       batch.set(customerRef, {
         'firstName': customer['firstName'],
         'lastName': customer['lastName'],
@@ -292,7 +178,58 @@ class BootstrapService {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     }
+  }
 
-    await batch.commit();
+  void _seedMockAppointments(
+    WriteBatch batch,
+    DocumentReference<Map<String, dynamic>> workspaceRef,
+    List<Map<String, Object?>> appointments,
+  ) {
+    for (final appointment in appointments) {
+      final id = appointment['id'] as String?;
+      final scheduledForRaw = appointment['scheduledFor'] as String?;
+      final scheduledFor = scheduledForRaw == null
+          ? null
+          : DateTime.tryParse(scheduledForRaw);
+      if (id == null || id.isEmpty || scheduledFor == null) {
+        continue;
+      }
+
+      final appointmentRef = workspaceRef.collection('appointments').doc(id);
+      batch.set(appointmentRef, {
+        'customerId': appointment['customerId'],
+        'customerName': appointment['customerName'],
+        'serviceId': appointment['serviceId'],
+        'serviceName': appointment['serviceName'],
+        'serviceDisplayName': appointment['serviceDisplayName'],
+        'serviceDurationMinutes': appointment['serviceDurationMinutes'],
+        'status': appointment['status'],
+        'notes': appointment['notes'],
+        'scheduledFor': scheduledFor,
+        'scheduledDateKey': dateKey(scheduledFor),
+        'slotLabel': appointment['slotLabel'],
+        'isMock': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+  }
+
+  Map<String, dynamic> _map(Object? value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    return const <String, dynamic>{};
+  }
+
+  List<Map<String, Object?>> _mapList(Object? value) {
+    if (value is! List) {
+      return const <Map<String, Object?>>[];
+    }
+
+    return value
+        .whereType<Map<String, dynamic>>()
+        .map((item) => Map<String, Object?>.from(item))
+        .toList(growable: false);
   }
 }

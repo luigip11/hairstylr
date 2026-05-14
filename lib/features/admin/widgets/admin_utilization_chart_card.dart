@@ -39,13 +39,15 @@ class AdminUtilizationChartCard extends GetView<AdminAreaController> {
           onChanged: controller.selectUtilizationRange,
         ),
         child: hasData
-            ? Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(12.0),
+            ? LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 420;
+                  final chartSize = compact ? 150.0 : 165.0;
+                  final chart = Padding(
+                    padding: EdgeInsets.all(compact ? 4 : 12),
                     child: SizedBox(
-                      width: 165,
-                      height: 165,
+                      width: chartSize,
+                      height: chartSize,
                       child: CustomPaint(
                         painter: _UtilizationPiePainter(
                           bookedRatio: bookedRatio,
@@ -74,53 +76,69 @@ class AdminUtilizationChartCard extends GetView<AdminAreaController> {
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _UtilizationLegendRow(
-                          color: AppTheme.accentBlue,
-                          label: 'Prenotati',
-                          value: '$bookedSlots',
+                  );
+                  final legend = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _UtilizationLegendRow(
+                        color: AppTheme.accentBlue,
+                        label: 'Prenotati',
+                        value: '$bookedSlots',
+                      ),
+                      const SizedBox(height: 12),
+                      _UtilizationLegendRow(
+                        color: AppColors.chartTrackBlue,
+                        label: 'Disponibili',
+                        value: '$remainingSlots',
+                      ),
+                      const SizedBox(height: 18),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.softPanel,
+                          borderRadius: BorderRadius.circular(18),
                         ),
-                        const SizedBox(height: 12),
-                        _UtilizationLegendRow(
-                          color: AppColors.chartTrackBlue,
-                          label: 'Disponibili',
-                          value: '$remainingSlots',
-                        ),
-                        const SizedBox(height: 18),
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: AppColors.softPanel,
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.calendar_month_rounded,
-                                color: AppTheme.accentBlueDark,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  '${range.totalLabel}: $totalSlots',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.accentBlueDark,
-                                  ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_month_rounded,
+                              color: AppTheme.accentBlueDark,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                '${range.totalLabel}: $totalSlots',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.accentBlueDark,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
+                      ),
+                    ],
+                  );
+
+                  if (compact) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Center(child: chart),
+                        const SizedBox(height: 18),
+                        legend,
                       ],
-                    ),
-                  ),
-                ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      chart,
+                      const SizedBox(width: 24),
+                      Expanded(child: legend),
+                    ],
+                  );
+                },
               )
             : Text(
                 'Nessuna disponibilità disponibile per la vista ${range.label.toLowerCase()}. Aggiorna il setup iniziale per vedere il grafico.',
