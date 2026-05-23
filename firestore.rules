@@ -31,6 +31,10 @@ service cloud.firestore {
       match /customers/{document=**} {
         allow read, write: if canAccessWorkspace(workspaceId);
       }
+
+      match /supportMessages/{document=**} {
+        allow read, write: if canAccessWorkspace(workspaceId);
+      }
     }
 
     match /{document=**} {

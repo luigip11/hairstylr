@@ -1,11 +1,12 @@
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../../../app/app_colors.dart';
-import '../../../core/services/email_launcher.dart';
 import '../../../core/services/link_launcher.dart';
-import '../../../core/services/support_email_message.dart';
+import '../controllers/admin_area_controller.dart';
 import 'admin_panel_shell.dart';
 
 class AdminInformationPanel extends StatefulWidget {
@@ -23,8 +24,10 @@ class _AdminInformationPanelState extends State<AdminInformationPanel> {
   final _nameFocusNode = FocusNode();
   final _messageFocusNode = FocusNode();
   String? _feedbackMessage;
+  bool _isSending = false;
 
   bool get _canSend =>
+      !_isSending &&
       _nameController.text.trim().isNotEmpty &&
       _messageController.text.trim().isNotEmpty;
 
@@ -190,8 +193,12 @@ class _AdminInformationPanelState extends State<AdminInformationPanel> {
                     const Spacer(),
                     FilledButton.icon(
                       onPressed: _canSend ? _sendMessage : null,
-                      icon: const Icon(Icons.mail_rounded),
-                      label: const Text('Invia'),
+                      icon: Icon(
+                        _isSending
+                            ? Icons.hourglass_top_rounded
+                            : Icons.send_rounded,
+                      ),
+                      label: Text(_isSending ? 'Invio...' : 'Invia'),
                     ),
                   ],
                 ),
@@ -225,24 +232,53 @@ class _AdminInformationPanelState extends State<AdminInformationPanel> {
   }
 
   Future<void> _sendMessage() async {
-    final sent = await launchSupportEmail(
-      recipient: supportEmailRecipient,
-      subject: supportEmailSubject,
-      body: buildSupportEmailBody(
+    setState(() {
+      _isSending = true;
+      _feedbackMessage = null;
+    });
+
+    try {
+      await Get.find<AdminAreaController>().submitSupportMessage(
         fullName: _nameController.text,
         message: _messageController.text,
-      ),
-    );
+      );
 
-    if (!mounted) {
-      return;
+      _nameController.clear();
+      _messageController.clear();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _feedbackMessage =
+            'Messaggio inviato automaticamente con la mail del tuo account admin.';
+      });
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _feedbackMessage = error.code == 'permission-denied'
+            ? 'Permessi Firestore insufficienti. Deploya le regole aggiornate prima di inviare.'
+            : 'Invio non riuscito: ${error.message ?? error.code}';
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _feedbackMessage = 'Invio non riuscito: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
     }
-
-    setState(() {
-      _feedbackMessage = sent
-          ? 'Client email aperto. Completa l\'invio dal tuo dispositivo.'
-          : 'Non sono riuscito ad aprire il client email su questo dispositivo.';
-    });
   }
 
   void _clearForm() {

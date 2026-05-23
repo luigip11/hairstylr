@@ -266,6 +266,10 @@ class AdminAreaController extends GetxController {
     visibleAppointmentsMonth.value = DateTime(date.year, date.month);
   }
 
+  void clearSelectedAppointmentDate() {
+    selectedAppointmentDate.value = null;
+  }
+
   bool hasAppointmentsOn(DateTime date) {
     return appointments.any((appointment) {
       final scheduledFor = _appointmentDate(appointment);
@@ -798,6 +802,32 @@ class AdminAreaController extends GetxController {
       DateTime value => value,
       _ => null,
     };
+  }
+
+  Future<void> submitSupportMessage({
+    required String fullName,
+    required String message,
+  }) async {
+    final workspaceRef = _workspaceRef;
+    if (workspaceRef == null) {
+      throw StateError('Workspace non configurato.');
+    }
+
+    final senderEmail = currentUser.value?.email?.trim();
+    if (senderEmail == null || senderEmail.isEmpty) {
+      throw StateError('Email mittente non disponibile.');
+    }
+
+    await workspaceRef.collection('supportMessages').add({
+      'fullName': fullName.trim(),
+      'message': message.trim(),
+      'senderEmail': senderEmail,
+      'workspaceId': currentWorkspaceId,
+      'workspaceName': currentWorkspaceName,
+      'status': 'new',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   @override

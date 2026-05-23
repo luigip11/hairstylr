@@ -20,76 +20,81 @@ class BookingMonthGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     const weekdayLabels = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
-    return Column(
-      children: [
-        Row(
-          children: weekdayLabels
-              .map(
-                (label) => Expanded(
-                  child: Center(
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        color: AppColors.textCalendarMuted,
-                        fontWeight: FontWeight.w600,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 540),
+        child: Column(
+          children: [
+            Row(
+              children: weekdayLabels
+                  .map(
+                    (label) => Expanded(
+                      child: Center(
+                        child: Text(
+                          label,
+                          style: const TextStyle(
+                            color: AppColors.textCalendarMuted,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+            const SizedBox(height: 12),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+              ),
+              itemCount: dates.length,
+              itemBuilder: (context, index) {
+                final date = dates[index];
+                if (date == null) {
+                  return const SizedBox.shrink();
+                }
+
+                final isSelected = isSameDate(date, selectedDate);
+                final isToday = isSameDate(date, dateOnly(DateTime.now()));
+
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onSelect(date),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.bookingDeepBlue
+                          : AppColors.softBlueAlt,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isToday && !isSelected
+                            ? bookingAccentBlue.withValues(alpha: 0.45)
+                            : Colors.transparent,
+                        width: isToday && !isSelected ? 3 : 1,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${date.day}',
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : AppColors.textNavy,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 17,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              )
-              .toList(growable: false),
+                );
+              },
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 7,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-          ),
-          itemCount: dates.length,
-          itemBuilder: (context, index) {
-            final date = dates[index];
-            if (date == null) {
-              return const SizedBox.shrink();
-            }
-
-            final isSelected = isSameDate(date, selectedDate);
-            final isToday = isSameDate(date, dateOnly(DateTime.now()));
-
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => onSelect(date),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 140),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.bookingDeepBlue
-                      : AppColors.softBlueAlt,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: isToday && !isSelected
-                        ? bookingAccentBlue.withValues(alpha: 0.45)
-                        : Colors.transparent,
-                    width: isToday && !isSelected ? 3 : 1,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    '${date.day}',
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : AppColors.textNavy,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 17,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ],
+      ),
     );
   }
 }
