@@ -21,30 +21,30 @@ enum AdminDashboardSection {
 
 extension AdminUtilizationRangeX on AdminUtilizationRange {
   String get label => switch (this) {
-    AdminUtilizationRange.daily => 'Giornaliero',
-    AdminUtilizationRange.weekly => 'Settimanale',
-    AdminUtilizationRange.monthly => 'Mensile',
+    AdminUtilizationRange.daily => 'Giorno',
+    AdminUtilizationRange.weekly => 'Settimana',
+    AdminUtilizationRange.monthly => 'Mese',
   };
 
   String get title => switch (this) {
-    AdminUtilizationRange.daily => 'Occupazione giornaliera',
-    AdminUtilizationRange.weekly => 'Occupazione settimanale',
-    AdminUtilizationRange.monthly => 'Occupazione mensile',
+    AdminUtilizationRange.daily => 'Stato appuntamenti',
+    AdminUtilizationRange.weekly => 'Stato appuntamenti',
+    AdminUtilizationRange.monthly => 'Stato appuntamenti',
   };
 
   String get subtitle => switch (this) {
     AdminUtilizationRange.daily =>
-      'Appuntamenti presi rispetto agli slot disponibili per oggi.',
+      'Distribuzione degli appuntamenti di oggi per stato.',
     AdminUtilizationRange.weekly =>
-      'Appuntamenti presi rispetto agli slot disponibili nella settimana corrente.',
+      'Distribuzione degli appuntamenti della settimana corrente per stato.',
     AdminUtilizationRange.monthly =>
-      'Appuntamenti presi rispetto agli slot disponibili nel mese corrente.',
+      'Distribuzione degli appuntamenti del mese corrente per stato.',
   };
 
   String get totalLabel => switch (this) {
-    AdminUtilizationRange.daily => 'Totale slot giornalieri',
-    AdminUtilizationRange.weekly => 'Totale slot settimanali',
-    AdminUtilizationRange.monthly => 'Totale slot mensili',
+    AdminUtilizationRange.daily => 'Totale appuntamenti oggi',
+    AdminUtilizationRange.weekly => 'Totale appuntamenti settimana',
+    AdminUtilizationRange.monthly => 'Totale appuntamenti mese',
   };
 }
 
@@ -111,6 +111,42 @@ class AdminAreaController extends GetxController {
 
   double get activeBookedRatio =>
       bookedRatioFor(selectedUtilizationRange.value);
+
+  int get activeAppointmentStatusTotal =>
+      appointmentsForRange(selectedUtilizationRange.value).length;
+
+  Map<String, int> get activeAppointmentStatusCounts =>
+      appointmentStatusCountsFor(selectedUtilizationRange.value);
+
+  List<Map<String, dynamic>> get currentWeekAppointments {
+    final today = dateOnly(DateTime.now());
+    final weekStart = today.subtract(Duration(days: today.weekday - 1));
+    final weekEnd = weekStart.add(const Duration(days: 7));
+
+    final items = appointments
+        .where((appointment) {
+          final scheduledFor = _appointmentDate(appointment);
+          return scheduledFor != null &&
+              !scheduledFor.isBefore(weekStart) &&
+              scheduledFor.isBefore(weekEnd);
+        })
+        .toList(growable: false);
+
+    return items..sort((left, right) {
+      final leftDate = _appointmentDate(left);
+      final rightDate = _appointmentDate(right);
+      if (leftDate == null && rightDate == null) {
+        return 0;
+      }
+      if (leftDate == null) {
+        return 1;
+      }
+      if (rightDate == null) {
+        return -1;
+      }
+      return leftDate.compareTo(rightDate);
+    });
+  }
 
   List<Map<String, dynamic>> get selectedDateAppointments =>
       selectedAppointmentDate.value == null
@@ -227,6 +263,39 @@ class AdminAreaController extends GetxController {
     }).length;
   }
 
+  List<Map<String, dynamic>> appointmentsForRange(AdminUtilizationRange range) {
+    final rangeStart = _rangeStart(range);
+    final rangeEnd = _rangeEnd(range);
+
+    return appointments
+        .where((appointment) {
+          final scheduledFor = _appointmentDate(appointment);
+          return scheduledFor != null &&
+              !scheduledFor.isBefore(rangeStart) &&
+              scheduledFor.isBefore(rangeEnd);
+        })
+        .toList(growable: false);
+  }
+
+  Map<String, int> appointmentStatusCountsFor(AdminUtilizationRange range) {
+    final counts = <String, int>{
+      'requested': 0,
+      'confirmed': 0,
+      'completed': 0,
+    };
+
+    for (final appointment in appointmentsForRange(range)) {
+      final status = (appointment['status'] as String?) ?? 'requested';
+      if (counts.containsKey(status)) {
+        counts[status] = counts[status]! + 1;
+      } else {
+        counts['requested'] = counts['requested']! + 1;
+      }
+    }
+
+    return counts;
+  }
+
   int remainingSlotsFor(AdminUtilizationRange range) {
     final remaining = slotCapacityFor(range) - bookedAppointmentsFor(range);
     return remaining < 0 ? 0 : remaining;
@@ -247,6 +316,13 @@ class AdminAreaController extends GetxController {
 
   void selectSection(AdminDashboardSection section) {
     selectedSection.value = section;
+  }
+
+  void openAppointmentsCalendar() {
+    selectedAppointmentDate.value = null;
+    final now = DateTime.now();
+    visibleAppointmentsMonth.value = DateTime(now.year, now.month);
+    selectSection(AdminDashboardSection.appointments);
   }
 
   void toggleSidebarCollapsed() {
