@@ -482,19 +482,20 @@ class _CustomerCompactCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            '$firstName $lastName',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textSlate,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Text(
-                  '$firstName $lastName',
-                  style: const TextStyle(
-                    color: AppColors.textSlate,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
               FilledButton(
                 onPressed: () => showDialog<void>(
                   context: context,
@@ -502,7 +503,8 @@ class _CustomerCompactCard extends StatelessWidget {
                 ),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  minimumSize: const Size(0, 38),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: const Text('Scheda'),
               ),
@@ -517,7 +519,8 @@ class _CustomerCompactCard extends StatelessWidget {
                   backgroundColor: AppColors.bookingDeepBlue,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  minimumSize: const Size(0, 38),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: const Text('Storico'),
               ),
