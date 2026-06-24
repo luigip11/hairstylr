@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 
 import '../../../app/app_routes.dart';
@@ -37,6 +38,7 @@ class PublicBookingPage extends GetView<PublicBookingController> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           BookingPosterHeader(
+                            title: _homeGreeting(),
                             onAdminTap: () {
                               controller.resetConfirmationSection();
                               Get.toNamed(AppRoutes.admin);
@@ -83,5 +85,31 @@ class PublicBookingPage extends GetView<PublicBookingController> {
         ),
       ),
     );
+  }
+
+  String _homeGreeting() {
+    final user = FirebaseAuth.instance.currentUser;
+    final displayName = user?.displayName?.trim();
+    if (displayName != null && displayName.isNotEmpty) {
+      return 'Ciao, $displayName';
+    }
+
+    final emailName = user?.email?.split('@').first.trim();
+    if (emailName == null || emailName.isEmpty) {
+      return 'Ciao';
+    }
+
+    final normalizedName = emailName
+        .replaceAll(RegExp(r'[._-]+'), ' ')
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .map(
+          (part) => part.length == 1
+              ? part.toUpperCase()
+              : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+        )
+        .join(' ');
+
+    return 'Ciao, $normalizedName';
   }
 }
