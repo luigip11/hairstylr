@@ -17,6 +17,7 @@ class PublicBookingController extends GetxController {
   final visibleMonth = DateTime(DateTime.now().year, DateTime.now().month).obs;
   final selectedServiceId = RxnString();
   final selectedSlot = Rxn<TimeSlot>();
+  final occupiedSlot = Rxn<TimeSlot>();
   final customSlots = <TimeSlot>[].obs;
   final isEditingCustomSlots = false.obs;
   final isSubmitting = false.obs;
@@ -27,12 +28,15 @@ class PublicBookingController extends GetxController {
 
   final services = <SalonService>[].obs;
   final customers = <Map<String, dynamic>>[].obs;
+  final appointments = <Map<String, dynamic>>[].obs;
   final availability = Rxn<AvailabilitySchedule>();
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _servicesSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _customersSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _appointmentsSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _availabilitySubscription;
   WorkspaceConfig? _workspace;
@@ -103,6 +107,7 @@ class PublicBookingController extends GetxController {
       !isSubmitting.value &&
       selectedService != null &&
       selectedSlot.value != null &&
+      !isSelectedSlotOccupied &&
       customerName.value.trim().isNotEmpty &&
       (!isOtherServiceSelected || customServiceLabel.value.trim().isNotEmpty);
 
@@ -112,7 +117,17 @@ class PublicBookingController extends GetxController {
 
   bool get hasCustomSlots => customSlots.isNotEmpty;
 
-  bool get canCreateCustomSlot => customSlots.length < 10;
+  bool get canCreateCustomSlot => customSlots.isEmpty;
+
+  bool get isSelectedSlotOccupied {
+    final selected = selectedSlot.value;
+    if (selected == null) {
+      return false;
+    }
+
+    final occupied = occupiedSlot.value;
+    return occupied != null && _sameSlot(selected, occupied);
+  }
 
   bool get hasCustomerDirectory =>
       FirebaseAuth.instance.currentUser != null && customers.isNotEmpty;
@@ -159,6 +174,18 @@ class PublicBookingController extends GetxController {
               .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
               .toList(growable: false);
           customers.assignAll(docs);
+        }, onError: _handleFirestoreStreamError);
+    _appointmentsSubscription = workspaceRef
+        .collection('appointments')
+        .orderBy('scheduledFor')
+        .snapshots()
+        .listen((snapshot) {
+          final docs = snapshot.docs
+              .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
+              .where((data) => data['isSeed'] != true)
+              .toList(growable: false);
+          appointments.assignAll(docs);
+          _syncOccupiedSelection();
         }, onError: _handleFirestoreStreamError);
     _availabilitySubscription = workspaceRef
         .collection('availability')
@@ -218,6 +245,7 @@ class PublicBookingController extends GetxController {
     );
     if (!stillExists) {
       selectedSlot.value = null;
+      occupiedSlot.value = null;
     }
   }
 
@@ -235,6 +263,7 @@ class PublicBookingController extends GetxController {
         1,
       );
       selectedSlot.value = null;
+      occupiedSlot.value = null;
       _clearCustomSlots();
     }
   }
@@ -243,6 +272,7 @@ class PublicBookingController extends GetxController {
     selectedDate.value = date;
     visibleMonth.value = DateTime(date.year, date.month);
     selectedSlot.value = null;
+    occupiedSlot.value = null;
     _clearCustomSlots();
     feedbackMessage.value = null;
   }
@@ -250,6 +280,7 @@ class PublicBookingController extends GetxController {
   void selectService(String serviceId) {
     selectedServiceId.value = serviceId;
     selectedSlot.value = null;
+    occupiedSlot.value = null;
     _clearCustomSlots();
     feedbackMessage.value = null;
     if (serviceId != 'altro') {
@@ -260,10 +291,13 @@ class PublicBookingController extends GetxController {
 
   void selectSlot(TimeSlot slot) {
     selectedSlot.value = slot;
-    feedbackMessage.value = null;
+    _syncOccupiedSelection();
+    if (!isSelectedSlotOccupied) {
+      feedbackMessage.value = null;
+    }
   }
 
-  void selectCustomTimeRange({
+  bool selectCustomTimeRange({
     required TimeOfDay startTime,
     required TimeOfDay endTime,
     int? index,
@@ -284,22 +318,32 @@ class PublicBookingController extends GetxController {
     );
 
     if (!end.isAfter(start)) {
-      return;
+      return false;
     }
 
     final slot = TimeSlot(start: start, end: end);
+    if (_hasOverlappingAppointment(slot, appointments)) {
+      selectedSlot.value = slot;
+      occupiedSlot.value = slot;
+      feedbackMessage.value = null;
+      return false;
+    }
 
     if (index != null && index >= 0 && index < customSlots.length) {
       customSlots[index] = slot;
     } else if (canCreateCustomSlot) {
       customSlots.add(slot);
+    } else if (customSlots.isNotEmpty) {
+      customSlots[0] = slot;
     } else {
-      return;
+      return false;
     }
 
     selectedSlot.value = slot;
     isEditingCustomSlots.value = false;
+    occupiedSlot.value = null;
     feedbackMessage.value = null;
+    return true;
   }
 
   void toggleCustomSlotsEditing() {
@@ -323,6 +367,7 @@ class PublicBookingController extends GetxController {
         selected?.end == removedSlot.end) {
       selectedSlot.value = null;
     }
+    occupiedSlot.value = null;
 
     if (customSlots.isEmpty) {
       isEditingCustomSlots.value = false;
@@ -332,6 +377,7 @@ class PublicBookingController extends GetxController {
 
   void resetConfirmationSection() {
     selectedSlot.value = null;
+    occupiedSlot.value = null;
     _clearCustomSlots();
     feedbackMessage.value = null;
     notesController.clear();
@@ -373,11 +419,11 @@ class PublicBookingController extends GetxController {
     feedbackMessage.value = null;
   }
 
-  Future<void> bookAppointment() async {
+  Future<BookingSubmissionResult> bookAppointment() async {
     final service = selectedService;
     final slot = selectedSlot.value;
     if (service == null || slot == null) {
-      return;
+      return const BookingSubmissionResult.error();
     }
 
     isSubmitting.value = true;
@@ -394,32 +440,46 @@ class PublicBookingController extends GetxController {
       final workspaceId = _workspace?.id;
       if (workspaceId == null) {
         feedbackMessage.value = 'Workspace non configurato per questo account.';
-        return;
+        return const BookingSubmissionResult.error();
       }
 
-      await FirebaseFirestore.instance
+      final workspaceRef = FirebaseFirestore.instance
           .collection('workspaces')
-          .doc(workspaceId)
-          .collection('appointments')
-          .doc(docId)
-          .set({
-            'customerName': nameController.text.trim(),
-            'customerId': selectedCustomerId.value,
-            'serviceId': service.id,
-            'serviceName': service.name,
-            'serviceDisplayName': selectedServiceDisplayName,
-            'serviceCustomLabel': customServiceLabel.value.trim(),
-            'serviceDurationMinutes': service.durationMinutes ?? 0,
-            'notes': notesController.text.trim(),
-            'status': 'requested',
-            'scheduledFor': slot.start,
-            'scheduledDateKey': dateKey(slot.start),
-            'slotLabel': formatTimeRange(slot.start, slot.end),
-            'slotEnd': slot.end,
-            'isCustomSlot': isCustomSlot,
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+          .doc(workspaceId);
+      final appointmentsRef = workspaceRef.collection('appointments');
+      final dayQuery = appointmentsRef.where(
+        'scheduledDateKey',
+        isEqualTo: dateKey(slot.start),
+      );
+
+      final daySnapshot = await dayQuery.get();
+      final dayAppointments = daySnapshot.docs
+          .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
+          .where((data) => data['isSeed'] != true)
+          .toList(growable: false);
+
+      if (_hasOverlappingAppointment(slot, dayAppointments)) {
+        throw const SlotAlreadyOccupiedException();
+      }
+
+      await appointmentsRef.doc(docId).set({
+        'customerName': nameController.text.trim(),
+        'customerId': selectedCustomerId.value,
+        'serviceId': service.id,
+        'serviceName': service.name,
+        'serviceDisplayName': selectedServiceDisplayName,
+        'serviceCustomLabel': customServiceLabel.value.trim(),
+        'serviceDurationMinutes': service.durationMinutes ?? 0,
+        'notes': notesController.text.trim(),
+        'status': 'requested',
+        'scheduledFor': slot.start,
+        'scheduledDateKey': dateKey(slot.start),
+        'slotLabel': formatTimeRange(slot.start, slot.end),
+        'slotEnd': slot.end,
+        'isCustomSlot': isCustomSlot,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       if (selectedCustomerId.value == null) {
         await _createCustomerFromBooking(workspaceId);
@@ -427,7 +487,9 @@ class PublicBookingController extends GetxController {
 
       feedbackMessage.value =
           'Richiesta inviata per $selectedServiceDisplayName il ${formatDate(selectedDate.value)} alle ${formatTime(slot.start)}.';
+      final successMessage = feedbackMessage.value!;
       selectedSlot.value = null;
+      occupiedSlot.value = null;
       _clearCustomSlots();
       nameController.clear();
       notesController.clear();
@@ -435,15 +497,94 @@ class PublicBookingController extends GetxController {
       customServiceLabel.value = '';
       customerName.value = '';
       selectedCustomerId.value = null;
+      return BookingSubmissionResult.success(successMessage);
+    } on SlotAlreadyOccupiedException {
+      occupiedSlot.value = slot;
+      feedbackMessage.value =
+          'Intervallo orario già occupato. Seleziona altri orari.';
+      return const BookingSubmissionResult.error();
     } on FirebaseException catch (error) {
       feedbackMessage.value = switch (error.code) {
         'permission-denied' =>
           'Prenotazione non consentita. Pubblica prima le regole Firestore aggiornate.',
         _ => 'Prenotazione non riuscita: ${error.message ?? error.code}',
       };
+      return const BookingSubmissionResult.error();
+    } catch (_) {
+      feedbackMessage.value = 'Prenotazione non riuscita.';
+      return const BookingSubmissionResult.error();
     } finally {
       isSubmitting.value = false;
     }
+  }
+
+  void _syncOccupiedSelection() {
+    final selected = selectedSlot.value;
+    if (selected == null) {
+      occupiedSlot.value = null;
+      return;
+    }
+
+    if (_hasOverlappingAppointment(selected, appointments)) {
+      occupiedSlot.value = selected;
+    } else if (_sameSlot(occupiedSlot.value, selected)) {
+      occupiedSlot.value = null;
+    }
+  }
+
+  bool _hasOverlappingAppointment(
+    TimeSlot slot,
+    List<Map<String, dynamic>> source,
+  ) {
+    return source.any((appointment) {
+      if ((appointment['status'] as String?) == 'cancelled') {
+        return false;
+      }
+
+      final appointmentSlot = _appointmentSlot(appointment);
+      if (appointmentSlot == null ||
+          !isSameDate(appointmentSlot.start, slot.start)) {
+        return false;
+      }
+
+      return appointmentSlot.start.isBefore(slot.end) &&
+          appointmentSlot.end.isAfter(slot.start);
+    });
+  }
+
+  TimeSlot? _appointmentSlot(Map<String, dynamic> appointment) {
+    final start = _appointmentDate(appointment['scheduledFor']);
+    if (start == null) {
+      return null;
+    }
+
+    final explicitEnd = _appointmentDate(appointment['slotEnd']);
+    if (explicitEnd != null && explicitEnd.isAfter(start)) {
+      return TimeSlot(start: start, end: explicitEnd);
+    }
+
+    final duration = (appointment['serviceDurationMinutes'] as num?)?.toInt();
+    final fallbackMinutes = duration != null && duration > 0 ? duration : 30;
+    return TimeSlot(
+      start: start,
+      end: start.add(Duration(minutes: fallbackMinutes)),
+    );
+  }
+
+  DateTime? _appointmentDate(Object? value) {
+    return switch (value) {
+      Timestamp timestamp => timestamp.toDate(),
+      DateTime date => date,
+      _ => null,
+    };
+  }
+
+  bool _sameSlot(TimeSlot? left, TimeSlot? right) {
+    if (left == null || right == null) {
+      return false;
+    }
+
+    return left.start == right.start && left.end == right.end;
   }
 
   Future<void> _createCustomerFromBooking(String workspaceId) async {
@@ -486,10 +627,36 @@ class PublicBookingController extends GetxController {
   void onClose() {
     _servicesSubscription?.cancel();
     _customersSubscription?.cancel();
+    _appointmentsSubscription?.cancel();
     _availabilitySubscription?.cancel();
     nameController.dispose();
     notesController.dispose();
     customServiceController.dispose();
     super.onClose();
   }
+}
+
+class SlotAlreadyOccupiedException implements Exception {
+  const SlotAlreadyOccupiedException();
+}
+
+enum BookingSubmissionStatus { success, error }
+
+class BookingSubmissionResult {
+  const BookingSubmissionResult._({
+    required this.status,
+    required this.message,
+  });
+
+  const BookingSubmissionResult.success(String message)
+    : this._(status: BookingSubmissionStatus.success, message: message);
+
+  const BookingSubmissionResult.error()
+    : this._(
+        status: BookingSubmissionStatus.error,
+        message: 'Errore. Riprova più tardi.',
+      );
+
+  final BookingSubmissionStatus status;
+  final String message;
 }

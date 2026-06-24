@@ -3,10 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../../app/app_colors.dart';
+import '../../../core/models/booking_support.dart';
 import '../../../core/services/phone_launcher.dart';
 import '../../../core/widgets/custom_empty_state.dart';
 import '../controllers/admin_area_controller.dart';
+import '../data/hair_color_option.dart';
 import 'admin_panel_shell.dart';
+import 'admin_popup_selector.dart';
+import 'hair_color_picker_dialog.dart';
+import 'rainbow_palette_button.dart';
 
 class AdminCustomersPanel extends GetView<AdminAreaController> {
   const AdminCustomersPanel({super.key});
@@ -197,123 +202,9 @@ class _CustomerTableGroup extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
                 child: constraints.maxWidth < 620
                     ? _CustomerCardsList(customers: customers)
-                    : DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: AppColors.borderBlueSoft),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minWidth: constraints.maxWidth,
-                            ),
-                            child: DataTable(
-                              headingRowColor: WidgetStateProperty.all(
-                                AppColors.softBlueTint,
-                              ),
-                              columns: const [
-                                DataColumn(
-                                  label: Text(
-                                    'Nome',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                DataColumn(
-                                  label: Text(
-                                    'Cognome',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                DataColumn(
-                                  label: Text(
-                                    'Numero di telefono',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                DataColumn(
-                                  label: Text(
-                                    'Note',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                DataColumn(
-                                  label: Text(
-                                    'Scheda cliente',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              rows: customers
-                                  .map(
-                                    (customer) => DataRow(
-                                      cells: [
-                                        DataCell(
-                                          Text(_value(customer, 'firstName')),
-                                        ),
-                                        DataCell(
-                                          Text(_value(customer, 'lastName')),
-                                        ),
-                                        DataCell(
-                                          _PhoneAction(
-                                            phoneNumber: _value(
-                                              customer,
-                                              'phoneNumber',
-                                            ),
-                                          ),
-                                        ),
-                                        DataCell(
-                                          SizedBox(
-                                            width: 260,
-                                            child: Text(
-                                              _value(customer, 'notes'),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ),
-                                        DataCell(
-                                          FilledButton.icon(
-                                            onPressed: () =>
-                                                _showCustomerDetail(
-                                                  context,
-                                                  customer,
-                                                ),
-                                            icon: const Icon(
-                                              Icons.arrow_forward_rounded,
-                                              size: 18,
-                                            ),
-                                            label: const Text('Scheda'),
-                                            style: FilledButton.styleFrom(
-                                              backgroundColor:
-                                                  AppColors.accentBlue,
-                                              foregroundColor: Colors.white,
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                  ),
-                                              minimumSize: const Size(0, 38),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                  .toList(growable: false),
-                            ),
-                          ),
-                        ),
+                    : _CustomerDesktopTable(
+                        customers: customers,
+                        minWidth: constraints.maxWidth,
                       ),
               );
             },
@@ -321,6 +212,207 @@ class _CustomerTableGroup extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _CustomerDesktopTable extends StatefulWidget {
+  const _CustomerDesktopTable({
+    required this.customers,
+    required this.minWidth,
+  });
+
+  final List<Map<String, dynamic>> customers;
+  final double minWidth;
+
+  @override
+  State<_CustomerDesktopTable> createState() => _CustomerDesktopTableState();
+}
+
+class _CustomerDesktopTableState extends State<_CustomerDesktopTable> {
+  late final ScrollController _scrollController;
+  bool _showRightShadow = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController()..addListener(_syncShadow);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncShadow());
+  }
+
+  @override
+  void didUpdateWidget(covariant _CustomerDesktopTable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncShadow());
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_syncShadow)
+      ..dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.borderBlueSoft),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: widget.minWidth),
+              child: DataTable(
+                headingRowColor: WidgetStateProperty.all(
+                  AppColors.softBlueTint,
+                ),
+                columns: const [
+                  DataColumn(
+                    label: Text(
+                      'Nome',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'Cognome',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'Cellulare',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'Scheda cliente',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'Storico cliente',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'Note',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+                rows: widget.customers
+                    .map(
+                      (customer) => DataRow(
+                        cells: [
+                          DataCell(Text(_value(customer, 'firstName'))),
+                          DataCell(Text(_value(customer, 'lastName'))),
+                          DataCell(
+                            _PhoneAction(
+                              phoneNumber: _value(customer, 'phoneNumber'),
+                            ),
+                          ),
+                          DataCell(
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  _showCustomerDetail(context, customer),
+                              icon: const Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 18,
+                              ),
+                              label: const Text('Scheda'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.accentBlue,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                minimumSize: const Size(0, 38),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  _showCustomerHistory(context, customer),
+                              icon: const Icon(Icons.history_rounded, size: 18),
+                              label: const Text('Storico'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.bookingDeepBlue,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                minimumSize: const Size(0, 38),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: 180,
+                              child: Text(
+                                _value(customer, 'notes'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+            ),
+          ),
+          if (_showRightShadow)
+            Positioned(
+              top: 0,
+              right: 0,
+              bottom: 0,
+              child: IgnorePointer(
+                child: Container(
+                  width: 34,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.white.withValues(alpha: 0),
+                        Colors.white.withValues(alpha: 0.95),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _syncShadow() {
+    if (!mounted || !_scrollController.hasClients) {
+      return;
+    }
+
+    final nextValue =
+        _scrollController.position.maxScrollExtent -
+            _scrollController.position.pixels >
+        1;
+    if (nextValue != _showRightShadow) {
+      setState(() {
+        _showRightShadow = nextValue;
+      });
+    }
   }
 
   static void _showCustomerDetail(
@@ -330,6 +422,16 @@ class _CustomerTableGroup extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (_) => AdminCustomerDetailDialog(customer: customer),
+    );
+  }
+
+  static void _showCustomerHistory(
+    BuildContext context,
+    Map<String, dynamic> customer,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AdminCustomerHistoryDialog(customer: customer),
     );
   }
 
@@ -383,30 +485,47 @@ class _CustomerCompactCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            '$firstName $lastName',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textSlate,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Text(
-                  '$firstName $lastName',
-                  style: const TextStyle(
-                    color: AppColors.textSlate,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              FilledButton.icon(
+              FilledButton(
                 onPressed: () => showDialog<void>(
                   context: context,
                   builder: (_) => AdminCustomerDetailDialog(customer: customer),
                 ),
-                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                label: const Text('Scheda'),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  minimumSize: const Size(0, 38),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
+                child: const Text('Scheda'),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (_) =>
+                      AdminCustomerHistoryDialog(customer: customer),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.bookingDeepBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Storico'),
               ),
             ],
           ),
@@ -728,6 +847,353 @@ class AdminCustomerDetailDialog extends StatelessWidget {
     }
     return value;
   }
+}
+
+class AdminCustomerHistoryDialog extends StatefulWidget {
+  const AdminCustomerHistoryDialog({super.key, required this.customer});
+
+  final Map<String, dynamic> customer;
+
+  @override
+  State<AdminCustomerHistoryDialog> createState() =>
+      _AdminCustomerHistoryDialogState();
+}
+
+class _AdminCustomerHistoryDialogState
+    extends State<AdminCustomerHistoryDialog> {
+  late final TextEditingController _priceController;
+  late final TextEditingController _colorCodeController;
+  late final TextEditingController _companyController;
+  late final TextEditingController _volumesController;
+  late final TextEditingController _historyNotesController;
+  late String _serviceId;
+  late String _serviceName;
+
+  AdminAreaController get controller => Get.find<AdminAreaController>();
+
+  Map<String, dynamic>? get _lastAppointment {
+    return controller.latestCompletedCustomerAppointmentForCustomer(
+      widget.customer,
+    );
+  }
+
+  Map<String, dynamic> get _history {
+    final raw = widget.customer['history'];
+    return raw is Map<String, dynamic> ? raw : <String, dynamic>{};
+  }
+
+  bool get _requiresColor => _serviceId == 'colore' || _serviceId == 'altro';
+
+  @override
+  void initState() {
+    super.initState();
+    final lastAppointment = _lastAppointment;
+    final history = _history;
+    _serviceId =
+        (history['serviceId'] as String?) ??
+        (lastAppointment?['serviceId'] as String?) ??
+        _firstServiceId();
+    _serviceName =
+        (history['serviceName'] as String?) ??
+        (lastAppointment?['serviceName'] as String?) ??
+        _serviceLabel(_serviceId);
+    _priceController = TextEditingController(
+      text:
+          (history['price'] as String?) ??
+          _formattedPrice(controller.servicePriceFor(_serviceId)),
+    );
+    _colorCodeController = TextEditingController(
+      text: (history['colorCode'] as String?) ?? '',
+    );
+    _companyController = TextEditingController(
+      text: (history['company'] as String?) ?? '',
+    );
+    _volumesController = TextEditingController(
+      text: (history['volumes'] as String?) ?? '',
+    );
+    _historyNotesController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _priceController.dispose();
+    _colorCodeController.dispose();
+    _companyController.dispose();
+    _volumesController.dispose();
+    _historyNotesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lastAppointment = _lastAppointment;
+    final lastWorkDate = lastAppointment == null
+        ? null
+        : controller.appointmentDate(lastAppointment);
+
+    return AlertDialog(
+      backgroundColor: AppColors.surfaceWhite,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+      title: const Text(
+        'Storico cliente',
+        style: TextStyle(
+          color: AppColors.bookingDeepBlue,
+          fontSize: 24,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      content: SizedBox(
+        width: 430,
+        child: lastAppointment == null || lastWorkDate == null
+            ? const CustomEmptyState(
+                message: 'Nessun lavoro effettuato per questo cliente.',
+                height: 260,
+              )
+            : SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _DetailCard(
+                      icon: Icons.event_available_rounded,
+                      label: 'Data ultimo lavoro fatto',
+                      value: formatDate(lastWorkDate),
+                    ),
+                    _EditableDetailCard(
+                      icon: Icons.content_cut_rounded,
+                      label: 'Tipo lavoro',
+                      child: AdminPopupSelector<String>(
+                        value: _serviceId,
+                        items: _serviceOptions(lastAppointment)
+                            .map(
+                              (service) => AdminPopupSelectorItem<String>(
+                                value: service.id,
+                                label: service.name,
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: _selectService,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _EditableDetailCard(
+                      icon: Icons.euro_rounded,
+                      label: 'Prezzo',
+                      child: TextField(
+                        controller: _priceController,
+                        onTapOutside: (_) =>
+                            FocusManager.instance.primaryFocus?.unfocus(),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: _dialogInputDecoration('Prezzo'),
+                      ),
+                    ),
+                    if (_requiresColor) ...[
+                      const SizedBox(height: 12),
+                      _EditableDetailCard(
+                        icon: Icons.palette_rounded,
+                        label: 'Colore utilizzato',
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _colorCodeController,
+                                onTapOutside: (_) => FocusManager
+                                    .instance
+                                    .primaryFocus
+                                    ?.unfocus(),
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                decoration: _dialogInputDecoration(
+                                  'Codice colore',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            RainbowPaletteButton(onPressed: _openColorPicker),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _EditableDetailCard(
+                        icon: Icons.business_rounded,
+                        label: 'Azienda',
+                        child: TextField(
+                          controller: _companyController,
+                          onTapOutside: (_) =>
+                              FocusManager.instance.primaryFocus?.unfocus(),
+                          textCapitalization: TextCapitalization.words,
+                          decoration: _dialogInputDecoration('Azienda'),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _EditableDetailCard(
+                        icon: Icons.tune_rounded,
+                        label: 'Volumi',
+                        child: TextField(
+                          controller: _volumesController,
+                          onTapOutside: (_) =>
+                              FocusManager.instance.primaryFocus?.unfocus(),
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: _dialogInputDecoration('Volumi'),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    _EditableDetailCard(
+                      icon: Icons.notes_rounded,
+                      label: 'Note',
+                      child: TextField(
+                        controller: _historyNotesController,
+                        onTapOutside: (_) =>
+                            FocusManager.instance.primaryFocus?.unfocus(),
+                        minLines: 3,
+                        maxLines: 5,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: _dialogInputDecoration('Note'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Chiudi'),
+        ),
+        if (lastAppointment != null && lastWorkDate != null)
+          Obx(
+            () => FilledButton(
+              onPressed: controller.isCreatingCustomer.value
+                  ? null
+                  : () async {
+                      final navigator = Navigator.of(context);
+                      final success = await controller.updateCustomerHistory(
+                        customerId: widget.customer['id'] as String? ?? '',
+                        serviceId: _serviceId,
+                        serviceName: _serviceName,
+                        price: _priceController.text,
+                        colorCode: _colorCodeController.text,
+                        company: _companyController.text,
+                        volumes: _volumesController.text,
+                        lastWorkDate: lastWorkDate,
+                        appointmentId: lastAppointment['id'] as String?,
+                        notes: _historyNotesController.text,
+                      );
+                      if (mounted && success) {
+                        navigator.pop();
+                      }
+                    },
+              child: Text(
+                controller.isCreatingCustomer.value
+                    ? 'Salvataggio...'
+                    : 'Salva',
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _selectService(String serviceId) {
+    setState(() {
+      _serviceId = serviceId;
+      _serviceName = _serviceLabel(serviceId);
+      final price = controller.servicePriceFor(serviceId);
+      if (price != null) {
+        _priceController.text = _formattedPrice(price);
+      }
+    });
+  }
+
+  Future<void> _openColorPicker() async {
+    final selectedColor = await showDialog<HairColorOption>(
+      context: context,
+      builder: (_) => HairColorPickerDialog(
+        initialCompany: _companyController.text.trim().isEmpty
+            ? 'Majirel'
+            : _companyController.text.trim(),
+        initialColorCode: _colorCodeController.text.trim(),
+      ),
+    );
+
+    if (selectedColor == null) {
+      return;
+    }
+
+    setState(() {
+      _colorCodeController.text = selectedColor.fullName;
+      _companyController.text = selectedColor.company;
+    });
+  }
+
+  List<_HistoryServiceOption> _serviceOptions(
+    Map<String, dynamic> lastAppointment,
+  ) {
+    final entries = <String, _HistoryServiceOption>{};
+    for (final service in controller.services) {
+      entries[service.id] = _HistoryServiceOption(
+        id: service.id,
+        name: service.name,
+      );
+    }
+
+    final appointmentServiceId = lastAppointment['serviceId'] as String?;
+    final appointmentServiceName = lastAppointment['serviceName'] as String?;
+    if (appointmentServiceId != null && appointmentServiceId.isNotEmpty) {
+      entries.putIfAbsent(
+        appointmentServiceId,
+        () => _HistoryServiceOption(
+          id: appointmentServiceId,
+          name: appointmentServiceName?.isNotEmpty == true
+              ? appointmentServiceName!
+              : appointmentServiceId,
+        ),
+      );
+    }
+
+    entries.putIfAbsent(
+      'altro',
+      () => const _HistoryServiceOption(id: 'altro', name: 'Altro'),
+    );
+
+    return entries.values.toList(growable: false);
+  }
+
+  String _firstServiceId() {
+    return controller.services.isEmpty ? 'altro' : controller.services.first.id;
+  }
+
+  String _serviceLabel(String serviceId) {
+    for (final service in controller.services) {
+      if (service.id == serviceId) {
+        return service.name;
+      }
+    }
+    if (serviceId == 'altro') {
+      return 'Altro';
+    }
+    return serviceId;
+  }
+
+  String _formattedPrice(num? price) {
+    if (price == null) {
+      return '';
+    }
+    if (price % 1 == 0) {
+      return price.toInt().toString();
+    }
+    return price.toStringAsFixed(2);
+  }
+}
+
+class _HistoryServiceOption {
+  const _HistoryServiceOption({required this.id, required this.name});
+
+  final String id;
+  final String name;
 }
 
 class _CustomerDetailActions extends StatelessWidget {

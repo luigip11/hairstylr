@@ -21,30 +21,30 @@ enum AdminDashboardSection {
 
 extension AdminUtilizationRangeX on AdminUtilizationRange {
   String get label => switch (this) {
-    AdminUtilizationRange.daily => 'Giornaliero',
-    AdminUtilizationRange.weekly => 'Settimanale',
-    AdminUtilizationRange.monthly => 'Mensile',
+    AdminUtilizationRange.daily => 'Giorno',
+    AdminUtilizationRange.weekly => 'Settimana',
+    AdminUtilizationRange.monthly => 'Mese',
   };
 
   String get title => switch (this) {
-    AdminUtilizationRange.daily => 'Occupazione giornaliera',
-    AdminUtilizationRange.weekly => 'Occupazione settimanale',
-    AdminUtilizationRange.monthly => 'Occupazione mensile',
+    AdminUtilizationRange.daily => 'Stato appuntamenti',
+    AdminUtilizationRange.weekly => 'Stato appuntamenti',
+    AdminUtilizationRange.monthly => 'Stato appuntamenti',
   };
 
   String get subtitle => switch (this) {
     AdminUtilizationRange.daily =>
-      'Appuntamenti presi rispetto agli slot disponibili per oggi.',
+      'Distribuzione degli appuntamenti di oggi per stato.',
     AdminUtilizationRange.weekly =>
-      'Appuntamenti presi rispetto agli slot disponibili nella settimana corrente.',
+      'Distribuzione degli appuntamenti della settimana corrente per stato.',
     AdminUtilizationRange.monthly =>
-      'Appuntamenti presi rispetto agli slot disponibili nel mese corrente.',
+      'Distribuzione degli appuntamenti del mese corrente per stato.',
   };
 
   String get totalLabel => switch (this) {
-    AdminUtilizationRange.daily => 'Totale slot giornalieri',
-    AdminUtilizationRange.weekly => 'Totale slot settimanali',
-    AdminUtilizationRange.monthly => 'Totale slot mensili',
+    AdminUtilizationRange.daily => 'Totale appuntamenti oggi',
+    AdminUtilizationRange.weekly => 'Totale appuntamenti settimana',
+    AdminUtilizationRange.monthly => 'Totale appuntamenti mese',
   };
 }
 
@@ -66,6 +66,7 @@ class AdminAreaController extends GetxController {
   final infoMessage = RxnString();
   final appointments = <Map<String, dynamic>>[].obs;
   final customers = <Map<String, dynamic>>[].obs;
+  final services = <SalonService>[].obs;
   final busyAppointmentIds = <String>{}.obs;
   final isCreatingCustomer = false.obs;
   final customerSearchQuery = ''.obs;
@@ -85,6 +86,8 @@ class AdminAreaController extends GetxController {
   _appointmentsSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _customersSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _servicesSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _availabilitySubscription;
   bool _seededLuigiMockDataThisSession = false;
@@ -111,6 +114,42 @@ class AdminAreaController extends GetxController {
 
   double get activeBookedRatio =>
       bookedRatioFor(selectedUtilizationRange.value);
+
+  int get activeAppointmentStatusTotal =>
+      appointmentsForRange(selectedUtilizationRange.value).length;
+
+  Map<String, int> get activeAppointmentStatusCounts =>
+      appointmentStatusCountsFor(selectedUtilizationRange.value);
+
+  List<Map<String, dynamic>> get currentWeekAppointments {
+    final today = dateOnly(DateTime.now());
+    final weekStart = today.subtract(Duration(days: today.weekday - 1));
+    final weekEnd = weekStart.add(const Duration(days: 7));
+
+    final items = appointments
+        .where((appointment) {
+          final scheduledFor = _appointmentDate(appointment);
+          return scheduledFor != null &&
+              !scheduledFor.isBefore(weekStart) &&
+              scheduledFor.isBefore(weekEnd);
+        })
+        .toList(growable: false);
+
+    return items..sort((left, right) {
+      final leftDate = _appointmentDate(left);
+      final rightDate = _appointmentDate(right);
+      if (leftDate == null && rightDate == null) {
+        return 0;
+      }
+      if (leftDate == null) {
+        return 1;
+      }
+      if (rightDate == null) {
+        return -1;
+      }
+      return leftDate.compareTo(rightDate);
+    });
+  }
 
   List<Map<String, dynamic>> get selectedDateAppointments =>
       selectedAppointmentDate.value == null
@@ -227,6 +266,39 @@ class AdminAreaController extends GetxController {
     }).length;
   }
 
+  List<Map<String, dynamic>> appointmentsForRange(AdminUtilizationRange range) {
+    final rangeStart = _rangeStart(range);
+    final rangeEnd = _rangeEnd(range);
+
+    return appointments
+        .where((appointment) {
+          final scheduledFor = _appointmentDate(appointment);
+          return scheduledFor != null &&
+              !scheduledFor.isBefore(rangeStart) &&
+              scheduledFor.isBefore(rangeEnd);
+        })
+        .toList(growable: false);
+  }
+
+  Map<String, int> appointmentStatusCountsFor(AdminUtilizationRange range) {
+    final counts = <String, int>{
+      'requested': 0,
+      'confirmed': 0,
+      'completed': 0,
+    };
+
+    for (final appointment in appointmentsForRange(range)) {
+      final status = (appointment['status'] as String?) ?? 'requested';
+      if (counts.containsKey(status)) {
+        counts[status] = counts[status]! + 1;
+      } else {
+        counts['requested'] = counts['requested']! + 1;
+      }
+    }
+
+    return counts;
+  }
+
   int remainingSlotsFor(AdminUtilizationRange range) {
     final remaining = slotCapacityFor(range) - bookedAppointmentsFor(range);
     return remaining < 0 ? 0 : remaining;
@@ -247,6 +319,13 @@ class AdminAreaController extends GetxController {
 
   void selectSection(AdminDashboardSection section) {
     selectedSection.value = section;
+  }
+
+  void openAppointmentsCalendar() {
+    selectedAppointmentDate.value = null;
+    final now = DateTime.now();
+    visibleAppointmentsMonth.value = DateTime(now.year, now.month);
+    selectSection(AdminDashboardSection.appointments);
   }
 
   void toggleSidebarCollapsed() {
@@ -302,6 +381,7 @@ class AdminAreaController extends GetxController {
       _bindAvailability();
       _bindAppointments();
       _bindCustomers();
+      _bindServices();
     });
   }
 
@@ -399,6 +479,49 @@ class AdminAreaController extends GetxController {
           onError: (Object error) {
             customers.clear();
             _setFirestoreStreamError('clienti', error);
+          },
+        );
+  }
+
+  void _bindServices() {
+    _servicesSubscription?.cancel();
+    services.clear();
+
+    if (!isAuthorizedAdmin) {
+      return;
+    }
+
+    final workspaceRef = _workspaceRef;
+    if (workspaceRef == null) {
+      return;
+    }
+
+    _servicesSubscription = workspaceRef
+        .collection('services')
+        .where('active', isEqualTo: true)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            final incoming =
+                snapshot.docs
+                    .map(SalonService.fromDocument)
+                    .toList(growable: false)
+                  ..sort((left, right) {
+                    const order = {
+                      'piega': 0,
+                      'taglio': 1,
+                      'colore': 2,
+                      'altro': 3,
+                    };
+                    return (order[left.id] ?? 999).compareTo(
+                      order[right.id] ?? 999,
+                    );
+                  });
+            services.assignAll(incoming);
+          },
+          onError: (Object error) {
+            services.clear();
+            _setFirestoreStreamError('servizi', error);
           },
         );
   }
@@ -650,6 +773,61 @@ class AdminAreaController extends GetxController {
     return false;
   }
 
+  Future<bool> updateCustomerHistory({
+    required String customerId,
+    required String serviceId,
+    required String serviceName,
+    required String price,
+    required String colorCode,
+    required String company,
+    required String volumes,
+    required String notes,
+    required DateTime lastWorkDate,
+    String? appointmentId,
+  }) async {
+    if (isCreatingCustomer.value) {
+      return false;
+    }
+
+    isCreatingCustomer.value = true;
+    infoMessage.value = null;
+
+    try {
+      final workspaceRef = _workspaceRef;
+      if (workspaceRef == null) {
+        throw StateError('Workspace non configurato.');
+      }
+
+      await workspaceRef.collection('customers').doc(customerId).update({
+        'history': {
+          'serviceId': serviceId,
+          'serviceName': serviceName.trim(),
+          'price': price.trim(),
+          'colorCode': colorCode.trim(),
+          'company': company.trim(),
+          'volumes': volumes.trim(),
+          'notes': notes.trim(),
+          'lastWorkDate': lastWorkDate,
+          'lastAppointmentId': appointmentId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      infoMessage.value = 'Storico cliente aggiornato.';
+      return true;
+    } on FirebaseException catch (error) {
+      infoMessage.value =
+          'Aggiornamento storico non riuscito: ${error.message ?? error.code}';
+    } catch (error) {
+      infoMessage.value = 'Aggiornamento storico non riuscito: $error';
+    } finally {
+      isCreatingCustomer.value = false;
+    }
+
+    return false;
+  }
+
   Future<bool> deleteCustomer(String customerId) async {
     if (isCreatingCustomer.value) {
       return false;
@@ -804,6 +982,62 @@ class AdminAreaController extends GetxController {
     };
   }
 
+  Map<String, dynamic>? latestCompletedCustomerAppointmentForCustomer(
+    Map<String, dynamic> customer,
+  ) {
+    final customerId = customer['id'] as String? ?? '';
+    final firstName = ((customer['firstName'] as String?) ?? '').trim();
+    final lastName = ((customer['lastName'] as String?) ?? '').trim();
+    final fullName = '$firstName $lastName'.trim().toLowerCase();
+    final matches =
+        appointments
+            .where((appointment) {
+              final appointmentCustomerId =
+                  appointment['customerId'] as String?;
+              final appointmentCustomerName =
+                  ((appointment['customerName'] as String?) ?? '')
+                      .trim()
+                      .toLowerCase();
+              final status = (appointment['status'] as String?) ?? 'requested';
+              final belongsToCustomer =
+                  (customerId.isNotEmpty &&
+                      appointmentCustomerId == customerId) ||
+                  (fullName.isNotEmpty && appointmentCustomerName == fullName);
+              return belongsToCustomer &&
+                  (status == 'confirmed' || status == 'completed');
+            })
+            .toList(growable: false)
+          ..sort((left, right) {
+            final leftDate = _appointmentDate(left);
+            final rightDate = _appointmentDate(right);
+            if (leftDate == null && rightDate == null) {
+              return 0;
+            }
+            if (leftDate == null) {
+              return 1;
+            }
+            if (rightDate == null) {
+              return -1;
+            }
+            return rightDate.compareTo(leftDate);
+          });
+
+    return matches.isEmpty ? null : matches.first;
+  }
+
+  DateTime? appointmentDate(Map<String, dynamic> appointment) {
+    return _appointmentDate(appointment);
+  }
+
+  num? servicePriceFor(String serviceId) {
+    for (final service in services) {
+      if (service.id == serviceId) {
+        return service.price;
+      }
+    }
+    return null;
+  }
+
   Future<void> submitSupportMessage({
     required String fullName,
     required String message,
@@ -835,6 +1069,7 @@ class AdminAreaController extends GetxController {
     _authSubscription?.cancel();
     _appointmentsSubscription?.cancel();
     _customersSubscription?.cancel();
+    _servicesSubscription?.cancel();
     _availabilitySubscription?.cancel();
     emailController.dispose();
     passwordController.dispose();

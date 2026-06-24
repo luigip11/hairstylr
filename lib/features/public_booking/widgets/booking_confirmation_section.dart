@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../app/app_colors.dart';
-import '../../../app/app_theme.dart';
 import '../../../core/models/booking_support.dart';
 import '../../../core/widgets/custom_empty_state.dart';
+import '../../../core/widgets/custom_feedback_snackbar.dart';
 import '../controllers/public_booking_controller.dart';
 import 'booking_choice_pill.dart';
 import 'booking_section_shell.dart';
@@ -152,30 +152,10 @@ class BookingConfirmationSection extends GetView<PublicBookingController> {
               ),
             ),
           ),
-          Obx(() {
-            final message = controller.feedbackMessage.value;
-            if (message == null || message.isEmpty) {
-              return const SizedBox.shrink();
-            }
-
-            return Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Text(
-                message,
-                style: TextStyle(
-                  color: message.startsWith('Richiesta')
-                      ? AppTheme.accentBlueDark
-                      : Theme.of(context).colorScheme.error,
-                ),
-              ),
-            );
-          }),
           const SizedBox(height: 18),
           Obx(
             () => FilledButton(
-              onPressed: controller.canSubmit
-                  ? controller.bookAppointment
-                  : null,
+              onPressed: controller.canSubmit ? _submitBooking : null,
               style: FilledButton.styleFrom(
                 backgroundColor: bookingAccentBlue,
                 disabledBackgroundColor: AppColors.disabledBlue,
@@ -191,6 +171,17 @@ class BookingConfirmationSection extends GetView<PublicBookingController> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _submitBooking() async {
+    final result = await controller.bookAppointment();
+
+    CustomFeedbackSnackbar.showGlobal(
+      message: result.message,
+      variant: result.status == BookingSubmissionStatus.success
+          ? CustomFeedbackSnackbarVariant.success
+          : CustomFeedbackSnackbarVariant.error,
     );
   }
 }

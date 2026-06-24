@@ -102,7 +102,6 @@ class BookingCalendarSection extends GetView<PublicBookingController> {
               return const SizedBox.shrink();
             }
 
-            final slots = controller.slots;
             final customSlots = controller.customSlots;
 
             return Column(
@@ -111,66 +110,24 @@ class BookingCalendarSection extends GetView<PublicBookingController> {
                 Row(
                   children: [
                     Text(
-                      'Orari disponibili',
+                      'Orario',
                       style: Theme.of(context).textTheme.titleLarge!.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    if (controller.hasCustomSlots) ...[
-                      const SizedBox(width: 8),
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        tooltip: controller.isEditingCustomSlots.value
-                            ? 'Fine modifica'
-                            : 'Modifica orari creati',
-                        onPressed: controller.toggleCustomSlotsEditing,
-                        icon: Icon(
-                          controller.isEditingCustomSlots.value
-                              ? Icons.check_circle
-                              : Icons.edit,
-                          color: controller.isEditingCustomSlots.value
-                              ? AppColors.accentBlueDark
-                              : Colors.grey,
-                          size: 26,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
                 const SizedBox(height: 12),
-                if (slots.isEmpty && customSlots.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 10),
-                    child: Text(
-                      'Nessuno slot disponibile per il giorno selezionato.',
-                    ),
-                  ),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    ...slots.map(
-                      (slot) => BookingChoicePill(
+                    ...customSlots.map((slot) {
+                      return BookingChoicePill(
                         label: formatTimeRange(slot.start, slot.end),
                         selected: _isSelectedSlot(slot),
                         onTap: () => controller.selectSlot(slot),
-                      ),
-                    ),
-                    ...customSlots.indexed.map((entry) {
-                      final index = entry.$1;
-                      final slot = entry.$2;
-                      return _CustomSlotPill(
-                        label: formatTimeRange(slot.start, slot.end),
-                        selected: _isSelectedSlot(slot),
-                        showActions: controller.isEditingCustomSlots.value,
-                        onTap: () => controller.selectSlot(slot),
-                        onEdit: () => _showCustomTimeDialog(
-                          context,
-                          isEditing: true,
-                          customSlotIndex: index,
-                        ),
-                        onDelete: () => controller.deleteCustomSlotAt(index),
                       );
                     }),
                     SizedBox(
@@ -208,18 +165,11 @@ class BookingCalendarSection extends GetView<PublicBookingController> {
   }
 
   void _handleCreateCustomTime(BuildContext context) {
-    if (!controller.canCreateCustomSlot) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Hai raggiunto il limite di orari creati. Cancellane o modifica uno per continuare.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    _showCustomTimeDialog(context);
+    _showCustomTimeDialog(
+      context,
+      isEditing: controller.hasCustomSlots,
+      customSlotIndex: controller.hasCustomSlots ? 0 : null,
+    );
   }
 
   bool _isSelectedSlot(TimeSlot slot) {
@@ -362,13 +312,19 @@ class BookingCalendarSection extends GetView<PublicBookingController> {
                                 return;
                               }
 
-                              controller.selectCustomTimeRange(
+                              final selected = controller.selectCustomTimeRange(
                                 startTime: TimeOfDay.fromDateTime(
                                   startDateTime,
                                 ),
                                 endTime: TimeOfDay.fromDateTime(endDateTime),
                                 index: customSlotIndex,
                               );
+                              if (!selected) {
+                                Navigator.of(dialogContext).pop();
+                                _showOccupiedSlotDialog(context);
+                                return;
+                              }
+
                               Navigator.of(dialogContext).pop();
                             },
                             child: const Text('Conferma'),
@@ -386,81 +342,28 @@ class BookingCalendarSection extends GetView<PublicBookingController> {
     );
   }
 
-  int _roundToPickerMinute(int minute) => minute - (minute % 5);
-}
-
-class _CustomSlotPill extends StatelessWidget {
-  const _CustomSlotPill({
-    required this.label,
-    required this.selected,
-    required this.showActions,
-    required this.onTap,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  final String label;
-  final bool selected;
-  final bool showActions;
-  final VoidCallback onTap;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        BookingChoicePill(label: label, selected: selected, onTap: onTap),
-        if (showActions)
-          Positioned(
-            top: -5,
-            left: -5,
-            child: _CustomSlotActionBadge(
-              icon: Icons.edit_rounded,
-              onTap: onEdit,
-            ),
+  void _showOccupiedSlotDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: const Text(
+            'Intervallo orario già occupato. Seleziona altri orari.',
+            style: TextStyle(fontWeight: FontWeight.w600),
           ),
-        if (showActions)
-          Positioned(
-            top: -5,
-            right: -5,
-            child: _CustomSlotActionBadge(
-              icon: Icons.close_rounded,
-              onTap: onDelete,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _CustomSlotActionBadge extends StatelessWidget {
-  const _CustomSlotActionBadge({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: onTap,
-        child: Ink(
-          width: 22,
-          height: 22,
-          decoration: BoxDecoration(
-            color: bookingDeepBlue,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
-          ),
-          child: Icon(icon, size: 13, color: Colors.white),
         ),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Riprova'),
+          ),
+        ],
       ),
     );
   }
+
+  int _roundToPickerMinute(int minute) => minute - (minute % 5);
 }
 
 class _CustomTimePickerPanel extends StatelessWidget {

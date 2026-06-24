@@ -7,8 +7,13 @@ const _heroBlueBottom = AppColors.heroBlueBottom;
 const _heroHairProfileAsset = 'assets/images/hero_hair_profile.png';
 
 class BookingPosterHeader extends StatelessWidget {
-  const BookingPosterHeader({super.key, required this.onAdminTap});
+  const BookingPosterHeader({
+    super.key,
+    required this.title,
+    required this.onAdminTap,
+  });
 
+  final String title;
   final VoidCallback onAdminTap;
 
   @override
@@ -62,16 +67,20 @@ class BookingPosterHeader extends StatelessWidget {
                   Row(
                     children: [
                       // logo
-                      const Text(
-                        'HAIRSTYLR',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontFamily: 'StoryScript',
-                          fontSize: 30,
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'StoryScript',
+                            fontSize: 30,
+                          ),
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 16),
                       // admin button
                       InkWell(
                         onTap: onAdminTap,
