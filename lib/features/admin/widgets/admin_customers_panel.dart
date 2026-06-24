@@ -7,8 +7,11 @@ import '../../../core/models/booking_support.dart';
 import '../../../core/services/phone_launcher.dart';
 import '../../../core/widgets/custom_empty_state.dart';
 import '../controllers/admin_area_controller.dart';
+import '../data/hair_color_option.dart';
 import 'admin_panel_shell.dart';
 import 'admin_popup_selector.dart';
+import 'hair_color_picker_dialog.dart';
+import 'rainbow_palette_button.dart';
 
 class AdminCustomersPanel extends GetView<AdminAreaController> {
   const AdminCustomersPanel({super.key});
@@ -990,12 +993,26 @@ class _AdminCustomerHistoryDialogState
                       _EditableDetailCard(
                         icon: Icons.palette_rounded,
                         label: 'Colore utilizzato',
-                        child: TextField(
-                          controller: _colorCodeController,
-                          onTapOutside: (_) =>
-                              FocusManager.instance.primaryFocus?.unfocus(),
-                          textCapitalization: TextCapitalization.characters,
-                          decoration: _dialogInputDecoration('Codice colore'),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _colorCodeController,
+                                onTapOutside: (_) => FocusManager
+                                    .instance
+                                    .primaryFocus
+                                    ?.unfocus(),
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                decoration: _dialogInputDecoration(
+                                  'Codice colore',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            RainbowPaletteButton(onPressed: _openColorPicker),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -1088,6 +1105,27 @@ class _AdminCustomerHistoryDialogState
       if (price != null) {
         _priceController.text = _formattedPrice(price);
       }
+    });
+  }
+
+  Future<void> _openColorPicker() async {
+    final selectedColor = await showDialog<HairColorOption>(
+      context: context,
+      builder: (_) => HairColorPickerDialog(
+        initialCompany: _companyController.text.trim().isEmpty
+            ? 'Majirel'
+            : _companyController.text.trim(),
+        initialColorCode: _colorCodeController.text.trim(),
+      ),
+    );
+
+    if (selectedColor == null) {
+      return;
+    }
+
+    setState(() {
+      _colorCodeController.text = selectedColor.fullName;
+      _companyController.text = selectedColor.company;
     });
   }
 
